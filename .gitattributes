@@ -1,0 +1,9 @@
+# Normalize line endings: commit LF, checkout platform-native
+* text=auto eol=lf
+
+# Binary files — no conversion
+*.mid binary
+*.png binary
+*.jpg binary
+*.ico binary
+*.icns binary

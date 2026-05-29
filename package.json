@@ -1,0 +1,79 @@
+{
+  "name": "musecore",
+  "version": "1.0.0",
+  "description": "Offline desktop drum score generator from MIDI",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev:renderer": "vite",
+    "dev:electron:build": "tsc -p tsconfig.electron.json --watch",
+    "dev:electron:run": "wait-on tcp:5173 dist-electron/main.js && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 nodemon --watch dist-electron --ext js --exec \"electron dist-electron/main.js\"",
+    "dev": "concurrently -k \"npm:dev:renderer\" \"npm:dev:electron:build\" \"npm:dev:electron:run\"",
+    "build:renderer": "vite build",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "build": "npm run build:renderer && npm run build:electron",
+    "package": "npm run build && electron-builder",
+    "dist": "npm run build && electron-builder",
+    "generate:demo-midi": "tsx scripts/generate-demo-midi.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "build": {
+    "appId": "com.drumo.app",
+    "productName": "Drumo",
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "mac": {
+      "category": "public.app-category.music",
+      "target": [
+        { "target": "dmg", "arch": ["x64", "arm64"] }
+      ]
+    },
+    "win": {
+      "target": "nsis",
+      "signAndEditExecutable": false
+    },
+    "linux": {
+      "target": "AppImage"
+    },
+    "publish": {
+      "provider": "github",
+      "releaseType": "release"
+    }
+  },
+  "dependencies": {
+    "@tensorflow/tfjs": "^4.22.0",
+    "@tonejs/midi": "^2.0.28",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "tailwindcss": "^4.3.0",
+    "tone": "^15.1.22",
+    "vexflow": "^5.0.0",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.0",
+    "@types/node": "^25.9.1",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.2",
+    "concurrently": "^10.0.0",
+    "cross-env": "^10.1.0",
+    "electron": "^42.3.0",
+    "electron-builder": "^26.8.1",
+    "nodemon": "^3.1.14",
+    "playwright-core": "^1.60.0",
+    "tsx": "^4.22.3",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.14",
+    "wait-on": "^9.0.10"
+  }
+}
