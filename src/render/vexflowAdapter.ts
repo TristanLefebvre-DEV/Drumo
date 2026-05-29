@@ -38,13 +38,14 @@ export const chordToStaveNote = (
   ppq: number,
   active: boolean,
   heatmap?: HeatmapOpts,
-  durOverride?: DurOverride
+  durOverride?: DurOverride,
+  forceStem?: 1 | -1
 ): StaveNote | null => {
   const mapped = hits.map((hit) => ({ hit, map: mapMidiToDrum(hit.midi) })).filter((h) => h.map !== null);
   if (mapped.length === 0) return null;
 
   const keys = mapped.map((item) => item.map!.vexKey);
-  const stemDir = chordStemDir(hits);
+  const stemDir = forceStem ?? chordStemDir(hits);
 
   const duration = durOverride
     ? durOverride.dur
@@ -54,7 +55,7 @@ export const chordToStaveNote = (
     keys,
     duration,
     clef: "percussion",
-    stem_direction: stemDir,
+    stemDirection: stemDir,
   });
 
   if (durOverride?.dotted) Dot.buildAndAttach([note]);
