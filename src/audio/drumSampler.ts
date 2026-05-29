@@ -77,7 +77,7 @@ const createSnareRim = (output: Tone.ToneAudioNode = getPreviewGain()): DrumVoic
     harmonicity: 8, modulationIndex: 20, resonance: 5000, octaves: 0.5,
   }, output);
   return {
-    trigger: (v = 0.75, time?) => s.triggerAttackRelease("32n", time ?? t(), v * 0.45),
+    trigger: (v = 0.75, time?) => s.triggerAttackRelease("32n", time ?? t(), Math.min(1, v ?? 0.75)),
     dispose: () => s.dispose(),
   };
 };
@@ -88,7 +88,7 @@ const createHihatClosed = (output: Tone.ToneAudioNode = getPreviewGain()): DrumV
     harmonicity: 5.1, modulationIndex: 32, resonance: 4000, octaves: 1.5,
   }, output);
   return {
-    trigger: (v = 0.75, time?) => s.triggerAttackRelease("32n", time ?? t(), v * 0.38),
+    trigger: (v = 0.75, time?) => s.triggerAttackRelease("32n", time ?? t(), Math.min(1, v ?? 0.75)),
     dispose: () => s.dispose(),
   };
 };
@@ -99,7 +99,7 @@ const createHihatOpen = (output: Tone.ToneAudioNode = getPreviewGain()): DrumVoi
     harmonicity: 5.1, modulationIndex: 32, resonance: 4000, octaves: 1.5,
   }, output);
   return {
-    trigger: (v = 0.75, time?) => s.triggerAttackRelease("4n", time ?? t(), v * 0.33),
+    trigger: (v = 0.75, time?) => s.triggerAttackRelease("4n", time ?? t(), Math.min(1, v ?? 0.75)),
     dispose: () => s.dispose(),
   };
 };
@@ -110,7 +110,7 @@ const createHihatPedal = (output: Tone.ToneAudioNode = getPreviewGain()): DrumVo
     harmonicity: 4.5, modulationIndex: 28, resonance: 3400, octaves: 1.0,
   }, output);
   return {
-    trigger: (v = 0.75, time?) => s.triggerAttackRelease("32n", time ?? t(), v * 0.28),
+    trigger: (v = 0.75, time?) => s.triggerAttackRelease("32n", time ?? t(), Math.min(1, v ?? 0.75)),
     dispose: () => s.dispose(),
   };
 };
@@ -131,8 +131,9 @@ const makeCymbal = (freq: number, decay: number, modIdx: number, output: Tone.To
     envelope: { attack: 0.001, decay, release: decay * 0.25 },
     harmonicity: 3.1, modulationIndex: modIdx, resonance: 3000, octaves: 1.5,
   }, output);
+  // No extra multiplier — velocity scaling is handled upstream by the scheduler / velocity processor
   return {
-    trigger: (v = 0.75, time?) => s.triggerAttackRelease("4n", time ?? t(), v * 0.32),
+    trigger: (v = 0.75, time?) => s.triggerAttackRelease("4n", time ?? t(), Math.min(1, v ?? 0.75)),
     dispose: () => s.dispose(),
   };
 };
