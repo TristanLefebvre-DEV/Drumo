@@ -8,7 +8,10 @@
  * Values are 0–100 representing "typical presence" for that style.
  */
 
-export type DrumStyle = "rock" | "jazz" | "metal" | "funk" | "electronic" | "custom";
+export type DrumStyle =
+  | "rock" | "jazz" | "metal" | "funk" | "electronic"
+  | "trap" | "latin" | "lofi" | "pop" | "fusion"
+  | "custom";
 
 export interface StyleProfile {
   id:              DrumStyle;
@@ -67,6 +70,46 @@ export const STYLE_PROFILES: Record<DrumStyle, StyleProfile> = {
     ghostNoteRatio: 2, accentRatio: 10, dynamicRange: 30, swingCharacter: 0,
     bpmRange: [110, 180],
     traits: ["Kick parfaitement quantizé", "Peu de cymbales", "Dynamique uniforme", "Pattern répétitif"],
+  },
+  trap: {
+    id: "trap", name: "Trap", color: "#f43f5e",
+    description: "808 bass kick, hi-hat triplets ultra-rapides, snare/clap",
+    kickDominance: 80, snarePresence: 60, cymbalDensity: 90, tomUsage: 5,
+    ghostNoteRatio: 2, accentRatio: 8, dynamicRange: 45, swingCharacter: 15,
+    bpmRange: [60, 160],
+    traits: ["808 kick sub-bass", "Hi-hat rolls en triolets", "Snare/clap on 3", "Peu de toms", "BPM souvent bas (70–140)"],
+  },
+  latin: {
+    id: "latin", name: "Latin", color: "#f97316",
+    description: "Percussions afro-latines, conga, bongo, ride syncopé",
+    kickDominance: 35, snarePresence: 45, cymbalDensity: 65, tomUsage: 60,
+    ghostNoteRatio: 12, accentRatio: 22, dynamicRange: 72, swingCharacter: 30,
+    bpmRange: [90, 220],
+    traits: ["Percussions ethniques", "Ride syncopé", "Clave rythmique", "Accents expressifs", "Fills de toms"],
+  },
+  lofi: {
+    id: "lofi", name: "Lo-Fi / Vintage", color: "#a78bfa",
+    description: "Groove soft, brossé, dynamique réduite, hi-hat lâche",
+    kickDominance: 40, snarePresence: 50, cymbalDensity: 55, tomUsage: 15,
+    ghostNoteRatio: 22, accentRatio: 8, dynamicRange: 60, swingCharacter: 40,
+    bpmRange: [60, 110],
+    traits: ["Brosses ou balais", "Groove relâché", "Ghost notes fréquents", "Swing léger", "Cymbales douces"],
+  },
+  pop: {
+    id: "pop", name: "Pop", color: "#ec4899",
+    description: "Groove propre et efficace, kick/snare très marqués, hats réguliers",
+    kickDominance: 70, snarePresence: 75, cymbalDensity: 70, tomUsage: 20,
+    ghostNoteRatio: 5, accentRatio: 10, dynamicRange: 55, swingCharacter: 5,
+    bpmRange: [90, 145],
+    traits: ["Kick/snare très présents", "Hi-hat en 8th ou 16th", "Groove carré et propre", "Fills simples"],
+  },
+  fusion: {
+    id: "fusion", name: "Fusion", color: "#14b8a6",
+    description: "Poly-rythmes complexes, cymbales variées, technique avancée",
+    kickDominance: 50, snarePresence: 55, cymbalDensity: 80, tomUsage: 45,
+    ghostNoteRatio: 18, accentRatio: 20, dynamicRange: 80, swingCharacter: 35,
+    bpmRange: [80, 240],
+    traits: ["Signatures irrégulières", "Ghost notes subtils", "Ride et hi-hat mixés", "Fills complexes", "Large palette de cymbales"],
   },
   custom: {
     id: "custom", name: "Personnalisé", color: "#6b7280",

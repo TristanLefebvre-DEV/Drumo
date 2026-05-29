@@ -27,3 +27,23 @@ export const DRUM_MAP: Record<number, DrumMapEntry> = {
 };
 
 export const mapMidiToDrum = (midi: number): DrumMapEntry | null => DRUM_MAP[midi] ?? null;
+
+/**
+ * Build a merged MIDI map: GM defaults overridden by a custom rack map.
+ * Use this when a Drum Rack import provides non-GM note assignments.
+ */
+export const buildCustomMap = (
+  overrides: Partial<Record<number, DrumMapEntry>>
+): Record<number, DrumMapEntry> => {
+  const result: Record<number, DrumMapEntry> = { ...DRUM_MAP };
+  for (const [key, val] of Object.entries(overrides)) {
+    if (val !== undefined) result[Number(key)] = val;
+  }
+  return result;
+};
+
+/** Look up a MIDI note in a custom map, falling back to GM defaults. */
+export const mapMidiWithCustom = (
+  midi: number,
+  customMap: Record<number, DrumMapEntry>
+): DrumMapEntry | null => customMap[midi] ?? DRUM_MAP[midi] ?? null;
