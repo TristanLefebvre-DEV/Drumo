@@ -100,10 +100,11 @@ export const fillMeasureSlots = (
       slots.push(...makeRests(cursor, chord.tickInMeasure - cursor, ppq, beatTicks));
     }
 
-    // Note duration = space to next chord (or measure end), capped at one beat
+    // Note duration = space to the next chord (or measure end).
+    // Capped at the full measure so single-note measures can use whole/dotted-half notes.
     const nextTick = sorted[i + 1]?.tickInMeasure ?? ticksPerMeasure;
     const spaceTicks = Math.min(nextTick - chord.tickInMeasure, ticksPerMeasure - chord.tickInMeasure);
-    const cappedTicks = Math.min(spaceTicks, beatTicks * 2); // cap at 2 beats for readability
+    const cappedTicks = Math.min(spaceTicks, ticksPerMeasure);
     const { dur, dotted, durTicks } = bestDur(cappedTicks, ppq);
 
     slots.push({

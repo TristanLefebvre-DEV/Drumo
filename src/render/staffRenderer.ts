@@ -1,9 +1,9 @@
 import { Formatter, Renderer, Stave, Voice } from "vexflow";
 import { chordToStaveNote, createRestNote } from "./vexflowAdapter";
-import { cleanMeasure } from "./notationCleanupEngine";
 import { generateBeams } from "./beamOptimizer";
 import { splitMeasureVoices } from "./voiceSplitter";
 import { applyArticulations } from "./articulationEngine";
+import { computeGlobalSubdivision } from "../notation/measureNormalizer";
 import type { HeatmapOpts } from "./vexflowAdapter";
 import type { CleanupOptions } from "./notationCleanupEngine";
 import type { DisplaySlot } from "./restOptimizer";
@@ -65,9 +65,9 @@ export const renderStaff = ({
 }: StaffRenderInput): void => {
   try {
     target.innerHTML = "";
-    const width = 1220 * zoomX;
-    const rowHeight = 150 * zoomY;
-    const height = Math.max(280, Math.ceil(rhythm.measures.length / 4) * rowHeight);
+    const width        = 1220 * zoomX;
+    const rowHeight    = 150 * zoomY;
+    const height       = Math.max(280, Math.ceil(rhythm.measures.length / 4) * rowHeight);
     const measureWidth = 290 * zoomX;
 
     // VexFlow 5 expects HTMLDivElement | HTMLCanvasElement
@@ -77,11 +77,16 @@ export const renderStaff = ({
     ctx.setFillStyle("#f4f4f5");
     ctx.setStrokeStyle("#f4f4f5");
 
+    // Pre-compute once: dominant subdivision across all measures (cross-measure consistency)
+    const globalSubdivision = cleanup.enabled
+      ? computeGlobalSubdivision(rhythm.measures, ppq)
+      : undefined;
+
     rhythm.measures.forEach((measure, index) => {
       const row = Math.floor(index / 4);
       const col = index % 4;
-      const x = 20 + col * measureWidth;
-      const y = 20 + row * rowHeight;
+      const x   = 20 + col * measureWidth;
+      const y   = 20 + row * rowHeight;
       const stave = new Stave(x, y, measureWidth - 18);
       if (index === 0) {
         stave.addClef("percussion");
@@ -90,9 +95,9 @@ export const renderStaff = ({
       stave.setContext(ctx).draw();
 
       if (cleanup.enabled) {
-        // ── Two-voice path: cymbals (stem up) + drums (stem down) ─────────────
+        // ── Two-voice path: cymbals (stem up) + drums (stem down) ───────────
         const { cymbals, drums } = splitMeasureVoices(
-          measure, rhythm.ticksPerMeasure, ppq, signature
+          measure, rhythm.ticksPerMeasure, ppq, signature, globalSubdivision
         );
 
         const cymbalNotes = slotsToNotes(cymbals, ppq, activeTick, heatmap, 1);
@@ -107,23 +112,23 @@ export const renderStaff = ({
         new Formatter().joinVoices(voices).format(voices, measureWidth - 35);
         voices.forEach(v => v.draw(ctx, stave));
 
-        // Beams per voice
+        // Beams per voice (never cross beat boundaries — beamOptimizer handles this)
         [cymbalNotes, drumNotes].forEach(notes => {
           if (notes.length === 0) return;
           generateBeams(notes).forEach(b => b.setContext(ctx).draw());
         });
 
       } else {
-        // ── Single-voice fallback (original path) ─────────────────────────────
-        const slots = cleanMeasure(measure, ppq, signature, rhythm.ticksPerMeasure);
-        const notes = slots.flatMap(slot => {
-          if (slot.type === "rest") {
-            try { return [createRestNote(slot.dur, slot.dotted)]; } catch { return []; }
-          }
-          const isActive = Math.abs(slot.absoluteTick - activeTick) <= ppq / 12;
-          const note = chordToStaveNote(slot.hits, ppq, isActive, heatmap, { dur: slot.dur, dotted: slot.dotted });
-          return note ? [note] : [];
-        });
+        // ── Raw single-voice path (no normalization, direct MIDI representation) ──
+        const notes = measure.chords
+          .map(chord =>
+            chordToStaveNote(
+              chord.hits, ppq,
+              Math.abs(chord.absoluteTick - activeTick) <= ppq / 12,
+              heatmap
+            )
+          )
+          .filter((n): n is StaveNote => n !== null);
 
         if (notes.length === 0) return;
 
