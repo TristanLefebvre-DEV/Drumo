@@ -8,6 +8,8 @@ import { analyzeLimbs, EMPTY_LIMB_MAP } from "../analysis/limbAnalyzer";
 import { buildPlayabilityMap } from "../analysis/playabilityEngine";
 import { analyzeSections } from "../analysis/sectionAnalyzer";
 import { analyzeEnergyFlow, type EnergyFlow } from "../analysis/energyFlowAnalyzer";
+import { runDrumIntelligenceCore } from "../ai/drum-core/drumIntelligenceCore";
+import type { DrumCoreOutput } from "../ai/drum-core/types";
 import { getIsolationMuteState } from "../audio/grooveIsolation";
 import { drumKitManager, DRUM_KIT_PRESETS, DEFAULT_KIT_ID, PIECE_TO_MIXER_CHANNEL } from "../audio/drumKitManager";
 import { buildHumanizeProcessors, DEFAULT_HUMANIZE, type HumanizeSettings } from "../playback/humanizeEngine";
@@ -83,6 +85,9 @@ interface ProjectStore {
   cleanup: { enabled: boolean };
   setCleanup: (patch: Partial<{ enabled: boolean }>) => void;
 
+  /** Output from the Drum Intelligence Core — set once per project load */
+  dicOutput: DrumCoreOutput | null;
+
   // ── Drum Kit ──────────────────────────────────────────────────────────────
   activeDrumKitId: DrumKitId;
   activeDrumKit: DrumKit;
@@ -116,6 +121,23 @@ const rebuild = (project: ParsedDrumProject, quantizeOptions: QuantizeOptions) =
     quantizeOptions: quantized.options,
     rhythm: buildRhythm(quantized.hits, project.ppq, project.timeSignature)
   };
+};
+
+/**
+ * Run the Drum Intelligence Core and derive smart initial quantize options.
+ * Falls back to current options if the project is empty.
+ */
+const runDIC = (
+  project:        ParsedDrumProject,
+  currentOptions: QuantizeOptions
+): { dicOutput: DrumCoreOutput; smartOptions: QuantizeOptions } => {
+  const dicOutput    = runDrumIntelligenceCore(project);
+  const smartOptions: QuantizeOptions = {
+    grid:           dicOutput.quantization.recommendedGrid,
+    preserveGroove: dicOutput.quantization.preserveMicroTiming,
+    swing:          currentOptions.swing,  // keep user's swing preference
+  };
+  return { dicOutput, smartOptions };
 };
 
 const rebuildLimbs = (project: ParsedDrumProject, mode: StickingMode): LimbMap =>
@@ -157,6 +179,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
     heatmap: { enabled: false, sensitivity: 1.0 },
     preview: { enabled: true, volume: 0.85 },
     cleanup: { enabled: false },
+    dicOutput: null,
     message: "Glisse un MIDI batterie ou clique Import MIDI.",
 
     activeDrumKitId: DEFAULT_KIT_ID,
@@ -256,7 +279,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
     loadMidi: (payload) => {
       try {
         const project = parseDrumMidi(new Uint8Array(payload.bytes), payload.filePath);
-        const next = rebuild(project, get().quantizeOptions);
+
+        // ── Drum Intelligence Core: analyse the groove, derive smart defaults ──
+        const { dicOutput, smartOptions } = project.hits.length > 0
+          ? runDIC(project, get().quantizeOptions)
+          : { dicOutput: null, smartOptions: get().quantizeOptions };
+
+        const next = rebuild(project, smartOptions);
         playbackEngine.stop();
         playbackEngine.setProject(project);
         const limbMap = rebuildLimbs(project, get().limbMode);
@@ -266,9 +295,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
         set({
           project,
           ...next,
+          dicOutput,
           limbMap,
           ...rebuildAnalysis(project, limbMap),
-          message: `${project.sourceName} — ${project.hits.length} frappes chargées.`
+          message: `${project.sourceName} — ${project.hits.length} frappes chargées.`,
         });
       } catch (error) {
         set({ message: `Impossible de charger: ${error instanceof Error ? error.message : String(error)}` });
@@ -277,17 +307,28 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
 
     loadProjectData: (payload) => {
       try {
-        const nextOptions = { ...get().quantizeOptions, ...(payload.quantizeOptions ?? {}) };
-        const next = rebuild(payload.project, nextOptions);
+        // DIC overrides quantize options only when the caller doesn't explicitly provide them
+        const hasCaller = payload.quantizeOptions && Object.keys(payload.quantizeOptions).length > 0;
+        const baseOptions = hasCaller
+          ? { ...get().quantizeOptions, ...(payload.quantizeOptions ?? {}) }
+          : get().quantizeOptions;
+
+        const { dicOutput, smartOptions } = payload.project.hits.length > 0
+          ? runDIC(payload.project, baseOptions)
+          : { dicOutput: null, smartOptions: baseOptions };
+
+        const finalOptions = hasCaller ? baseOptions : smartOptions;
+        const next = rebuild(payload.project, finalOptions);
         playbackEngine.stop();
         playbackEngine.setProject(payload.project);
         const limbMap = rebuildLimbs(payload.project, get().limbMode);
         set({
           project: payload.project,
           ...next,
+          dicOutput,
           limbMap,
           ...rebuildAnalysis(payload.project, limbMap),
-          message: `${payload.project.sourceName} — projet chargé.`
+          message: `${payload.project.sourceName} — projet chargé.`,
         });
       } catch (error) {
         set({ message: `Projet invalide: ${error instanceof Error ? error.message : String(error)}` });

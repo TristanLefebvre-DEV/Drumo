@@ -20,6 +20,12 @@ export interface StaffRenderInput {
   activeTick: number;
   heatmap: HeatmapOpts;
   cleanup: CleanupOptions;
+  /**
+   * Optional subdivision hint from the Drum Intelligence Core.
+   * When provided, skips the per-session majority-vote and uses this
+   * globally-consistent grid directly — ensures DIC ↔ renderer coherence.
+   */
+  dicSubdivision?: import("../notation/subdivisionDetector").SubdivisionType;
 }
 
 /** Convert a DisplaySlot array into StaveNotes with a forced stem direction. */
@@ -62,6 +68,7 @@ export const renderStaff = ({
   activeTick,
   heatmap,
   cleanup,
+  dicSubdivision,
 }: StaffRenderInput): void => {
   try {
     target.innerHTML = "";
@@ -77,9 +84,11 @@ export const renderStaff = ({
     ctx.setFillStyle("#f4f4f5");
     ctx.setStrokeStyle("#f4f4f5");
 
-    // Pre-compute once: dominant subdivision across all measures (cross-measure consistency)
+    // Pre-compute once: dominant subdivision for cross-measure consistency.
+    // DIC subdivision takes priority (already computed from full project context).
+    // Falls back to per-session majority-vote when DIC is not available.
     const globalSubdivision = cleanup.enabled
-      ? computeGlobalSubdivision(rhythm.measures, ppq)
+      ? (dicSubdivision ?? computeGlobalSubdivision(rhythm.measures, ppq))
       : undefined;
 
     rhythm.measures.forEach((measure, index) => {
