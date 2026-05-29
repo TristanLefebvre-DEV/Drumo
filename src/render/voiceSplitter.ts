@@ -1,3 +1,24 @@
+/**
+ * Voice Splitter
+ *
+ * Splits a normalized measure into two independent DisplaySlot arrays:
+ *
+ *   Voice 1 — cymbals (stem up)
+ *     hi-hat (open/closed/pedal), crash, ride, splash, otherCymbal
+ *     maxNoteDur = 2 × subdivision step
+ *       → 16th hi-hats stay 16th notes even when the next cymbal event is far away
+ *       → 8th hi-hats stay 8th notes
+ *       → crashes in a 16th-note pattern get an 8th note (readable, not a half note)
+ *
+ *   Voice 2 — drums (stem down)
+ *     kick, snare, snareRim, toms
+ *     maxNoteDur = 2 beats (half note max)
+ *       → kick/snare quarter notes in standard grooves
+ *       → half-note kick in sparse passages
+ *
+ * Both voices span the full measure (rests fill every gap).
+ */
+
 import { fillMeasureSlots, type DisplaySlot } from "./restOptimizer";
 import type { MeasureData, DrumChord, TimeSignature, DrumPiece } from "../core/types";
 import { mapMidiToDrum } from "../core/drumMapper";
@@ -26,35 +47,29 @@ const filterChord = (chord: DrumChord, wantCymbals: boolean): DrumChord | null =
 };
 
 /**
- * Split one measure into two independent DisplaySlot arrays for two-voice notation.
+ * Split one measure into two DisplaySlot arrays for two-voice drum notation.
  *
- * Before splitting:
- *   - Hard-snaps all chord ticks to the detected (or forced) subdivision grid.
- *   - Merges chords that collide after snapping.
- *
- * After splitting:
- *   - Each sub-voice is independently filled with rests to span the full measure.
- *
- * @param measure            Source measure (not mutated).
- * @param ticksPerMeasure    Total tick span of the measure.
- * @param ppq                Pulses per quarter note.
- * @param signature          Time signature (for beat-boundary rest alignment).
- * @param globalSubdivision  Optional: override per-measure detection for cross-measure consistency.
+ * Pipeline:
+ *   1. normalizeMeasure: hard-snap ticks to subdivision grid + merge collisions.
+ *   2. filterChord: cymbal hits → voice 1, drum hits → voice 2.
+ *   3. fillMeasureSlots: assign note durations + fill gaps with rests.
+ *      Per-voice maxNoteDur ensures notation matches the instrument's role.
  */
 export const splitMeasureVoices = (
-  measure: MeasureData,
-  ticksPerMeasure: number,
-  ppq: number,
-  signature: TimeSignature,
+  measure:           MeasureData,
+  ticksPerMeasure:   number,
+  ppq:               number,
+  signature:         TimeSignature,
   globalSubdivision?: SubdivisionType
 ): SplitVoices => {
   const beatTicks = ppq * (4 / signature.denominator);
 
-  // Normalize first: hard-snap ticks to subdivision grid + merge collisions
-  const { chords: normalized } = normalizeMeasure(
+  // Step 1 — normalize: snap + merge
+  const { chords: normalized, subdivisionStep } = normalizeMeasure(
     measure, ppq, ticksPerMeasure, globalSubdivision
   );
 
+  // Step 2 — filter per voice
   const cymbalChords: DrumChord[] = normalized
     .map(c => filterChord(c, true))
     .filter((c): c is DrumChord => c !== null);
@@ -63,8 +78,19 @@ export const splitMeasureVoices = (
     .map(c => filterChord(c, false))
     .filter((c): c is DrumChord => c !== null);
 
+  // Step 3 — assign durations + fill rests
+  //
+  // Cymbal max: 2 × subdivision step.
+  //   If subdiv = 1/16 (120 ticks) → max = 240 (8th note).
+  //   If subdiv = 1/8  (240 ticks) → max = 480 (quarter note).
+  //   If subdiv = 1/4  (480 ticks) → max = beatTicks (= 1 beat, avoid half-note hi-hat).
+  //
+  // Drum max: 2 beats (half note). A kick spanning 2 beats is valid; more is unusual.
+  const cymbalMax = Math.min(subdivisionStep * 2, beatTicks);
+  const drumMax   = beatTicks * 2;
+
   return {
-    cymbals: fillMeasureSlots(cymbalChords, ticksPerMeasure, ppq, beatTicks),
-    drums:   fillMeasureSlots(drumChords,   ticksPerMeasure, ppq, beatTicks),
+    cymbals: fillMeasureSlots(cymbalChords, ticksPerMeasure, ppq, beatTicks, cymbalMax),
+    drums:   fillMeasureSlots(drumChords,   ticksPerMeasure, ppq, beatTicks, drumMax),
   };
 };
