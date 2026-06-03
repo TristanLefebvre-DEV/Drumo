@@ -136,6 +136,7 @@ const makeCymbal = (freq: number, decay: number, _modIdx: number, output: Tone.T
 
 export const VOICE_FACTORIES: Record<DrumPiece, () => DrumVoice> = {
   kick:        () => createKick(),
+  kick2:       () => createKick(),
   snare:       () => createSnare(),
   snareRim:    () => createSnareRim(),
   hihatClosed: () => createHihatClosed(),
@@ -156,6 +157,7 @@ export const VOICE_FACTORIES: Record<DrumPiece, () => DrumVoice> = {
 export const createVoiceForPiece = (piece: DrumPiece, output: Tone.ToneAudioNode): DrumVoice => {
   switch (piece) {
     case "kick":        return createKick(output);
+    case "kick2":       return createKick(output);
     case "snare":       return createSnare(output);
     case "snareRim":    return createSnareRim(output);
     case "hihatClosed": return createHihatClosed(output);

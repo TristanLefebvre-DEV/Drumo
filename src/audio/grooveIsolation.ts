@@ -29,7 +29,7 @@ export const ISOLATION_LABELS: Record<NonNullable<IsolationMode>, string> = {
   "snare-only":       "Snare seul",
   "cymbals-only":     "Cymbales",
   "toms-only":        "Toms",
-  "ghost-notes-only": "Ghost notes",
+  "ghost-notes-only": "Notes fantômes",
 };
 
 export const ISOLATION_ICONS: Record<NonNullable<IsolationMode>, string> = {

@@ -25,7 +25,7 @@ import type { LimbMap, StickingMode } from "../analysis/limbAnalyzer";
 import type { PlayabilityMap } from "../analysis/playabilityEngine";
 import type { Section } from "../analysis/sectionAnalyzer";
 import type { IsolationMode } from "../audio/grooveIsolation";
-import type { DrumHit, DrumPiece, ParsedDrumProject, QuantizeGrid, QuantizeOptions, QuantizedHit, RhythmResult } from "../core/types";
+import type { DrumHit, DrumPiece, NoteType, ParsedDrumProject, QuantizeGrid, QuantizeOptions, QuantizedHit, RhythmResult } from "../core/types";
 
 interface ProjectStore {
   project: ParsedDrumProject | null;
@@ -39,6 +39,19 @@ interface ProjectStore {
   isPlaying: boolean;
   isPaused: boolean;
   transport: TransportOptions;
+
+  /**
+   * Source audio de la lecture — toujours "midi".
+   *
+   * Play MIDI    → audioSource = "midi", la vue MIDI est active.
+   * Play Partition → audioSource = "midi", la vue Partition suit visuellement.
+   *
+   * La partition (MuseScorePanel) n'est PAS une source audio :
+   * elle suit le curseur de lecture MIDI via RAF (zero re-render React).
+   * Toute modification de la partition visuelle ne change PAS le son joué.
+   * Seul le MIDI (project.hits) détermine ce qui est entendu.
+   */
+  readonly playbackSource: "midi";
 
   loadMidi: (payload: { bytes: number[]; filePath: string }) => void;
   loadProjectData: (payload: { project: ParsedDrumProject; quantizeOptions?: Partial<QuantizeOptions> }) => void;
@@ -85,8 +98,6 @@ interface ProjectStore {
   setHeatmap: (patch: Partial<{ enabled: boolean; sensitivity: number }>) => void;
   preview: { enabled: boolean; volume: number };
   setPreview: (patch: Partial<{ enabled: boolean; volume: number }>) => void;
-  cleanup: { enabled: boolean };
-  setCleanup: (patch: Partial<{ enabled: boolean }>) => void;
 
   /** Output from the Drum Intelligence Core — set once per project load */
   dicOutput: DrumCoreOutput | null;
@@ -135,7 +146,20 @@ interface ProjectStore {
   removeHit: (hitId: string) => void;
   addHit: (piece: DrumPiece, midi: number, tick: number, velocity: number) => void;
   setHitVelocity: (hitId: string, velocity: number) => void;
+  setHitDuration: (hitId: string, durationTicks: number) => void;
+  pasteHits: (hits: Array<{ piece: DrumPiece; midi: number; tick: number; velocity: number; durationTicks: number }>) => void;
   newProject: (bpm?: number, numerator?: number, denominator?: number) => void;
+
+  // ── Undo / Redo ──────────────────────────────────────────────────────────
+  undoStack: DrumHit[][];
+  redoStack: DrumHit[][];
+  undo: () => void;
+  redo: () => void;
+
+  // ── Note properties ───────────────────────────────────────────────────────
+  setHitType:        (hitId: string, noteType: NoteType) => void;
+  setHitProbability: (hitId: string, probability: number) => void;
+  toggleHitMute:     (hitId: string) => void;
 }
 
 const rebuild = (project: ParsedDrumProject, quantizeOptions: QuantizeOptions) => {
@@ -186,8 +210,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
     zoomX: 1,
     zoomY: 1,
     quantizeOptions: { grid: "1/16", preserveGroove: true, swing: 0 },
-    isPlaying: false,
-    isPaused: false,
+    isPlaying:      false,
+    isPaused:       false,
+    playbackSource: "midi" as const,
     transport: { ...DEFAULT_TRANSPORT },
     limbMap: EMPTY_LIMB_MAP,
     limbMode: "human" as StickingMode,
@@ -202,7 +227,6 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
     humanize: { ...DEFAULT_HUMANIZE },
     heatmap: { enabled: false, sensitivity: 1.0 },
     preview: { enabled: true, volume: 0.85 },
-    cleanup: { enabled: false },
     dicOutput: null,
     message: "Glisse un MIDI batterie ou clique Import MIDI.",
 
@@ -218,6 +242,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
     showDrumMixer: false,
     kitRecommendation: null,
     kitFavorites: customKitLoader.getFavoriteIds(),
+
+    undoStack: [],
+    redoStack: [],
 
     // ── Drum Kit actions ───────────────────────────────────────────────────────
 
@@ -587,32 +614,113 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
 
     setHeatmap: (patch) => set((state) => ({ heatmap: { ...state.heatmap, ...patch } })),
     setPreview: (patch) => set((state) => ({ preview: { ...state.preview, ...patch } })),
-    setCleanup: (patch) => set((state) => ({ cleanup: { ...state.cleanup, ...patch } })),
+
+    // ── Undo / Redo helpers ───────────────────────────────────────────────────
+
+    undo: () => {
+      const { undoStack, redoStack, project } = get();
+      if (undoStack.length === 0 || !project) return;
+      const prev = undoStack[undoStack.length - 1];
+      const nextProject = { ...project, hits: prev };
+      const next = rebuild(nextProject, get().quantizeOptions);
+      playbackEngine.setProject(nextProject);
+      const limbMap = rebuildLimbs(nextProject, get().limbMode);
+      set({
+        project: nextProject, ...next, limbMap,
+        ...rebuildAnalysis(nextProject, limbMap),
+        undoStack: undoStack.slice(0, -1),
+        redoStack: [...redoStack, [...project.hits]],
+        message: "Annulé.",
+      });
+    },
+
+    redo: () => {
+      const { undoStack, redoStack, project } = get();
+      if (redoStack.length === 0 || !project) return;
+      const next_ = redoStack[redoStack.length - 1];
+      const nextProject = { ...project, hits: next_ };
+      const next = rebuild(nextProject, get().quantizeOptions);
+      playbackEngine.setProject(nextProject);
+      const limbMap = rebuildLimbs(nextProject, get().limbMode);
+      set({
+        project: nextProject, ...next, limbMap,
+        ...rebuildAnalysis(nextProject, limbMap),
+        redoStack: redoStack.slice(0, -1),
+        undoStack: [...undoStack, [...project.hits]],
+        message: "Rétabli.",
+      });
+    },
+
+    // ── Note properties ───────────────────────────────────────────────────────
+
+    setHitType: (hitId, noteType) => {
+      const project = get().project;
+      if (!project) return;
+      const { undoStack } = get();
+      const hits = project.hits.map((h) =>
+        h.id === hitId ? { ...h, noteType: noteType === "normal" ? undefined : noteType } : h
+      );
+      const nextProject = { ...project, hits };
+      playbackEngine.setProject(nextProject);
+      const opts = get().quantizeOptions;
+      set({ project: nextProject, ...rebuild(nextProject, opts), undoStack: [...undoStack.slice(-49), [...project.hits]], redoStack: [] });
+    },
+
+    setHitProbability: (hitId, probability) => {
+      const project = get().project;
+      if (!project) return;
+      const { undoStack } = get();
+      const clamped = Math.max(0, Math.min(100, Math.round(probability)));
+      const hits = project.hits.map((h) =>
+        h.id === hitId ? { ...h, probability: clamped === 100 ? undefined : clamped } : h
+      );
+      const nextProject = { ...project, hits };
+      playbackEngine.setProject(nextProject);
+      set({ project: nextProject, ...rebuild(nextProject, get().quantizeOptions), undoStack: [...undoStack.slice(-49), [...project.hits]], redoStack: [] });
+    },
+
+    toggleHitMute: (hitId) => {
+      const project = get().project;
+      if (!project) return;
+      const { undoStack } = get();
+      const hits = project.hits.map((h) =>
+        h.id === hitId ? { ...h, muted: !h.muted || undefined } : h
+      );
+      const nextProject = { ...project, hits };
+      playbackEngine.setProject(nextProject);
+      const limbMap = rebuildLimbs(nextProject, get().limbMode);
+      set({ project: nextProject, ...rebuild(nextProject, get().quantizeOptions), limbMap, ...rebuildAnalysis(nextProject, limbMap), undoStack: [...undoStack.slice(-49), [...project.hits]], redoStack: [] });
+    },
+
+    // ── Hits CRUD (with undo snapshot) ────────────────────────────────────────
 
     moveHit: (hitId, deltaTicks) => {
       const project = get().project;
       if (!project) return;
+      const { undoStack } = get();
       const hits = project.hits.map((h) => h.id === hitId ? { ...h, tick: Math.max(0, h.tick + deltaTicks) } : h);
       const nextProject = { ...project, hits };
       const next = rebuild(nextProject, get().quantizeOptions);
       playbackEngine.setProject(nextProject);
       const limbMap = rebuildLimbs(nextProject, get().limbMode);
-      set({ project: nextProject, ...next, limbMap, ...rebuildAnalysis(nextProject, limbMap), message: "Frappe déplacée." });
+      set({ project: nextProject, ...next, limbMap, ...rebuildAnalysis(nextProject, limbMap), message: "Frappe déplacée.", undoStack: [...undoStack.slice(-49), [...project.hits]], redoStack: [] });
     },
 
     removeHit: (hitId) => {
       const project = get().project;
       if (!project) return;
+      const { undoStack } = get();
       const nextProject = { ...project, hits: project.hits.filter((h) => h.id !== hitId) };
       const next = rebuild(nextProject, get().quantizeOptions);
       playbackEngine.setProject(nextProject);
       const limbMap = rebuildLimbs(nextProject, get().limbMode);
-      set({ project: nextProject, ...next, limbMap, ...rebuildAnalysis(nextProject, limbMap), message: "Frappe supprimée." });
+      set({ project: nextProject, ...next, limbMap, ...rebuildAnalysis(nextProject, limbMap), message: "Frappe supprimée.", undoStack: [...undoStack.slice(-49), [...project.hits]], redoStack: [] });
     },
 
     addHit: (piece, midi, tick, velocity) => {
       const project = get().project;
       if (!project) return;
+      const { undoStack } = get();
       const newHit: DrumHit = {
         id: crypto.randomUUID(),
         midi, piece, tick,
@@ -625,12 +733,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
       const next = rebuild(nextProject, get().quantizeOptions);
       playbackEngine.setProject(nextProject);
       const limbMapA = rebuildLimbs(nextProject, get().limbMode);
-      set({ project: nextProject, ...next, limbMap: limbMapA, ...rebuildAnalysis(nextProject, limbMapA) });
+      set({ project: nextProject, ...next, limbMap: limbMapA, ...rebuildAnalysis(nextProject, limbMapA), undoStack: [...undoStack.slice(-49), [...project.hits]], redoStack: [] });
     },
 
     setHitVelocity: (hitId, velocity) => {
       const project = get().project;
       if (!project) return;
+      const { undoStack } = get();
       const hits = project.hits.map((h) =>
         h.id === hitId ? { ...h, velocity, isGhost: velocity < 0.42, isAccent: velocity > 0.85 } : h
       );
@@ -638,7 +747,40 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
       const next = rebuild(nextProject, get().quantizeOptions);
       playbackEngine.setProject(nextProject);
       const limbMapB = rebuildLimbs(nextProject, get().limbMode);
-      set({ project: nextProject, ...next, limbMap: limbMapB, ...rebuildAnalysis(nextProject, limbMapB) });
+      set({ project: nextProject, ...next, limbMap: limbMapB, ...rebuildAnalysis(nextProject, limbMapB), undoStack: [...undoStack.slice(-49), [...project.hits]], redoStack: [] });
+    },
+
+    setHitDuration: (hitId, durationTicks) => {
+      const project = get().project;
+      if (!project) return;
+      const { undoStack } = get();
+      const hits = project.hits.map((h) =>
+        h.id === hitId ? { ...h, durationTicks: Math.max(1, durationTicks) } : h
+      );
+      const nextProject = { ...project, hits };
+      const next = rebuild(nextProject, get().quantizeOptions);
+      playbackEngine.setProject(nextProject);
+      set({ project: nextProject, ...next, undoStack: [...undoStack.slice(-49), [...project.hits]], redoStack: [] });
+    },
+
+    pasteHits: (descriptors) => {
+      const project = get().project;
+      if (!project || descriptors.length === 0) return;
+      const { undoStack } = get();
+      const newHits: DrumHit[] = descriptors.map((d) => ({
+        id: crypto.randomUUID(),
+        midi: d.midi, piece: d.piece,
+        tick: Math.max(0, d.tick),
+        durationTicks: Math.max(1, d.durationTicks),
+        velocity: d.velocity,
+        isGhost: d.velocity < 0.42,
+        isAccent: d.velocity > 0.85,
+      }));
+      const nextProject = { ...project, hits: [...project.hits, ...newHits] };
+      const next = rebuild(nextProject, get().quantizeOptions);
+      playbackEngine.setProject(nextProject);
+      const limbMap = rebuildLimbs(nextProject, get().limbMode);
+      set({ project: nextProject, ...next, limbMap, ...rebuildAnalysis(nextProject, limbMap), message: `${newHits.length} note(s) collée(s).`, undoStack: [...undoStack.slice(-49), [...project.hits]], redoStack: [] });
     },
 
     newProject: (bpm = 120, numerator = 4, denominator = 4) => {

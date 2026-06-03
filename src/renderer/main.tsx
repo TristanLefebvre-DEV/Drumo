@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { AppShell } from "../ui/pages/AppShell";
+import { SplashScreen } from "../ui/components/SplashScreen";
 import "./styles/index.css";
 
 class ErrorBoundary extends React.Component<
@@ -30,10 +31,28 @@ class ErrorBoundary extends React.Component<
   }
 }
 
+const Root = () => {
+  const [splashDone, setSplashDone] = useState(false);
+
+  return (
+    <>
+      {/* App shell is always mounted so it loads in background during splash */}
+      <div style={{ visibility: splashDone ? "visible" : "hidden", height: "100%" }}>
+        <ErrorBoundary>
+          <AppShell />
+        </ErrorBoundary>
+      </div>
+
+      {/* Splash sits on top until onComplete fires */}
+      {!splashDone && (
+        <SplashScreen onComplete={() => setSplashDone(true)} duration={3800} />
+      )}
+    </>
+  );
+};
+
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <ErrorBoundary>
-      <AppShell />
-    </ErrorBoundary>
+    <Root />
   </React.StrictMode>
 );

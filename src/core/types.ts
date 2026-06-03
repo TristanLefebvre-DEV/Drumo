@@ -1,5 +1,6 @@
 export type DrumPiece =
   | "kick"
+  | "kick2"         // double bass drum (gauche / second pédalier)
   | "snare"
   | "snareRim"
   | "hihatClosed"
@@ -15,6 +16,9 @@ export type DrumPiece =
 
 export type QuantizeGrid = "1/4" | "1/8" | "1/16" | "1/32" | "8T" | "16T";
 
+/** Drum-notation specific articulation for a hit. */
+export type NoteType = "normal" | "flam" | "roll";
+
 export interface TimeSignature {
   numerator: number;
   denominator: number;
@@ -29,6 +33,12 @@ export interface DrumHit {
   velocity: number;
   isGhost: boolean;
   isAccent: boolean;
+  /** Drum articulation type — default "normal". */
+  noteType?: NoteType;
+  /** Probability (0–100) that this note plays on each pass — default 100. */
+  probability?: number;
+  /** Silenced without deletion — default false. */
+  muted?: boolean;
 }
 
 export interface ParsedDrumProject {

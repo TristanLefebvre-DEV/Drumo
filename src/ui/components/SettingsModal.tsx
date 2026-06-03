@@ -9,11 +9,11 @@
 import { useState } from "react";
 import {
   useSettingsStore,
-  type AccentColor,
   type VisualDensity,
   type FontSize,
   type Appearance,
 } from "../../store/settingsStore";
+import { ChromaticColorPicker } from "./ChromaticColorPicker";
 
 // ─── Primitive UI components ──────────────────────────────────────────────────
 
@@ -816,16 +816,6 @@ const LearnSection = () => {
   );
 };
 
-// ─── Accent color chips ───────────────────────────────────────────────────────
-
-const ACCENTS: { id: AccentColor; label: string; hex: string }[] = [
-  { id: "blue",   label: "Studio",    hex: "#0071e3" },
-  { id: "black",  label: "Minimal",   hex: "#636366" },
-  { id: "red",    label: "Energie",   hex: "#ff453a" },
-  { id: "green",  label: "Précision", hex: "#30d158" },
-  { id: "purple", label: "Créatif",   hex: "#bf5af2" },
-  { id: "orange", label: "Apprend.",  hex: "#ff9f0a" },
-];
 
 const ThemeSection = () => {
   const { theme, setTheme } = useSettingsStore();
@@ -927,58 +917,24 @@ const ThemeSection = () => {
         </div>
       </SettingGroup>
 
-      {/* ── Accent color ───────────────────────────────────────────── */}
-      <SettingGroup title="Couleur d'accent">
+      {/* ── Gradient colors ─────────────────────────────────────────── */}
+      <SettingGroup title="Couleurs du dégradé">
         <div style={{ padding: "10px 0" }}>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            {ACCENTS.map((a) => {
-              const active = theme.accent === a.id;
-              return (
-                <button
-                  key={a.id}
-                  type="button"
-                  title={a.label}
-                  onClick={() => setTheme({ accent: a.id })}
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: 5,
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    padding: 0,
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 9,
-                      background: a.hex,
-                      outline: active
-                        ? `3px solid ${a.hex}`
-                        : "3px solid transparent",
-                      outlineOffset: 2,
-                      transform: active ? "scale(1.1)" : "scale(1)",
-                      transition: "transform 0.15s, outline 0.15s",
-                      boxShadow: active
-                        ? `0 0 0 1.5px var(--bg-app), 0 2px 8px ${a.hex}66`
-                        : "none",
-                    }}
-                  />
-                  <span
-                    style={{
-                      fontSize: 10,
-                      color: active ? "var(--tx-1)" : "var(--tx-3)",
-                      fontWeight: active ? 600 : 400,
-                    }}
-                  >
-                    {a.label}
-                  </span>
-                </button>
-              );
-            })}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--tx-2)" }}>Couleur 1</span>
+              <ChromaticColorPicker
+                value={theme.gradientColor1 ?? "#0071e3"}
+                onChange={(hex) => setTheme({ gradientColor1: hex })}
+              />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--tx-2)" }}>Couleur 2</span>
+              <ChromaticColorPicker
+                value={theme.gradientColor2 ?? "#bf5af2"}
+                onChange={(hex) => setTheme({ gradientColor2: hex })}
+              />
+            </div>
           </div>
         </div>
       </SettingGroup>

@@ -5,11 +5,10 @@ import type { QuantizeGrid } from "../core/types";
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
 export type Appearance    = "dark" | "light";
-export type AccentColor   = "blue" | "black" | "red" | "green" | "purple" | "orange";
 export type VisualDensity = "minimal" | "standard" | "dense";
 export type FontSize      = "small" | "medium" | "large";
 export type AnimMode      = "full" | "reduced" | "none";
-export type GradientStyle = "flat" | "subtle" | "radial" | "mesh" | "aurora";
+export type GradientStyle = "flat" | "subtle" | "radial" | "mesh" | "aurora" | "neon" | "prism" | "wave";
 export type StaminaModel  = "standard" | "advanced";
 export type PracticeMode  = "free" | "guided";
 export type AIProc        = "background" | "synchronous";
@@ -81,15 +80,16 @@ export interface LearnSettings {
 }
 
 export interface ThemeSettings {
-  appearance:     Appearance;
-  accent:         AccentColor;
-  density:        VisualDensity;
-  animations:     boolean;
-  highContrast:   boolean;
-  fontSize:       FontSize;
-  gradientStyle:  GradientStyle;
-  gradientAngle:  number;   // 0–360, défaut 135
-  gradientInvert: boolean;  // inverser le sens
+  appearance:      Appearance;
+  gradientColor1:  string;   // hex — couleur primaire du dégradé
+  gradientColor2:  string;   // hex — couleur secondaire du dégradé
+  density:         VisualDensity;
+  animations:      boolean;
+  highContrast:    boolean;
+  fontSize:        FontSize;
+  gradientStyle:   GradientStyle;
+  gradientAngle:   number;   // 0–360, défaut 135
+  gradientInvert:  boolean;  // inverser le sens
 }
 
 // ─── Defaults ─────────────────────────────────────────────────────────────────
@@ -159,15 +159,16 @@ export const DEFAULT_SETTINGS = {
   } satisfies LearnSettings,
 
   theme: {
-    appearance:     "dark",
-    accent:         "blue",
-    density:        "standard",
-    animations:     true,
-    highContrast:   false,
-    fontSize:       "medium",
-    gradientStyle:  "mesh",
-    gradientAngle:  135,
-    gradientInvert: false,
+    appearance:      "dark",
+    gradientColor1:  "#0071e3",
+    gradientColor2:  "#bf5af2",
+    density:         "standard",
+    animations:      true,
+    highContrast:    false,
+    fontSize:        "medium",
+    gradientStyle:   "mesh",
+    gradientAngle:   135,
+    gradientInvert:  false,
   } satisfies ThemeSettings,
 };
 
@@ -225,7 +226,8 @@ export const applyThemeToDom = (t: ThemeSettings): void => {
   // Gradient engine drives all color variables dynamically
   import("../ui/utils/gradientEngine").then(({ applyGradientToDom }) => {
     applyGradientToDom(
-      t.accent,
+      t.gradientColor1 ?? "#0071e3",
+      t.gradientColor2 ?? "#bf5af2",
       t.appearance,
       t.gradientStyle  ?? "mesh",
       t.gradientAngle  ?? 135,

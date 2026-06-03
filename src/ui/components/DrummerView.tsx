@@ -6,7 +6,7 @@ import { renderDrummerView, COMPACT_PIECES, type DrummerViewMode } from "../../r
 import { playDrumSound } from "../../audio/notePreviewEngine";
 import { useProjectStore } from "../../store/projectStore";
 import type { QuantizedHit, ParsedDrumProject, QuantizeGrid } from "../../core/types";
-import type { HeatmapOpts } from "../../render/vexflowAdapter";
+import type { HeatmapOpts } from "../../render/renderTypes";
 
 const BASE_CELL_W = 18;
 const ROW_H_COMPACT = 36;

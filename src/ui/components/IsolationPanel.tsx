@@ -28,7 +28,7 @@ export const IsolationPanel = () => {
   if (!project) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5 border-t border-zinc-800/60 bg-zinc-950/60 px-3 py-2">
+    <div className="flex flex-wrap items-center gap-1.5 px-3 py-2">
       <span className="mr-1 text-xs text-zinc-600">Isolation :</span>
 
       {/* "All" button resets isolation */}

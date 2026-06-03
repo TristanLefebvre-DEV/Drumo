@@ -7,6 +7,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ScoresLibraryPage } from "./ScoresLibraryPage";
 import * as Tone from "tone";
 import { useProjectStore }       from "../../store/projectStore";
 import { DRUM_KIT_PRESETS }       from "../../audio/drumKitManager";
@@ -762,7 +763,11 @@ const PieceRow = ({
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
-export const LibraryPage = () => {
+export interface LibraryPageProps {
+  onOpenScoreInComposer?: (filePath: string) => void;
+}
+
+export const LibraryPage = ({ onOpenScoreInComposer }: LibraryPageProps = {}) => {
   const {
     activeDrumKitId, activeDrumKit, setDrumKit,
     customPieceSounds, samplePieceFiles,
@@ -770,7 +775,7 @@ export const LibraryPage = () => {
     activeSampleKitId, loadingKitId, loadSampleKit, unloadSampleKit,
   } = useProjectStore();
 
-  const [tab,           setTab]           = useState<"library" | "builder">("library");
+  const [tab,           setTab]           = useState<"library" | "builder" | "scores">("library");
   const [savedKits,     setSavedKits]     = useState<SavedSampleKit[]>(() => sampleKitStore.getAll());
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [editKitId,     setEditKitId]     = useState<string | null>(null);
@@ -848,6 +853,7 @@ export const LibraryPage = () => {
       }}>
         <Tab label="Bibliothèque" active={tab === "library"} badge={savedKits.length > 0 ? savedKits.length : undefined} onClick={() => setTab("library")} />
         <Tab label="Constructeur de kit" active={tab === "builder"} badge={totalCustom > 0 ? totalCustom : undefined} onClick={() => setTab("builder")} />
+        <Tab label="Mes partitions" active={tab === "scores"} onClick={() => setTab("scores")} />
       </div>
 
       {/* ── ONGLET : Bibliothèque ── */}
@@ -1140,6 +1146,13 @@ export const LibraryPage = () => {
               Glisse un fichier directement sur la rangée de la pièce.
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ── ONGLET : Mes partitions ── */}
+      {tab === "scores" && (
+        <div style={{ flex: 1, overflow: "hidden" }}>
+          <ScoresLibraryPage onOpenInComposer={onOpenScoreInComposer} />
         </div>
       )}
 

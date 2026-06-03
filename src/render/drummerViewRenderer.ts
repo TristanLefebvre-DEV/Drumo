@@ -1,6 +1,6 @@
 import { mapVelocityToColor } from "./velocityColor";
 import type { GrooveGrid } from "./grooveGrid";
-import type { HeatmapOpts } from "./vexflowAdapter";
+import type { HeatmapOpts } from "./renderTypes";
 import type { DrumRow } from "../core/drumGrid";
 
 export type DrummerViewMode = "compact" | "detailed";

@@ -1,14 +1,17 @@
 /**
- * Compose Page — v2
+ * Compose Page — v4
  *
- * Primary creative workspace. Transport bar is now at app-shell level.
- * Toolbar is reorganised into labelled groups with consistent spacing.
- * Right inspector is always visible; optional panels slide in beside it.
+ * Layout inspiré de l'image de référence :
+ *  - Toolbar fine (Grid + Groove + contextuel)
+ *  - Tab bar : Partition | Vue Batteur | MIDI | Mixeur | Corps
+ *  - Zone centrale : vue principale (score prend tout l'espace)
+ *  - PropertiesPanel droit (Propriétés | Piste)
+ *  - Panneaux flottants (Humanize, Metronome, Balance) via Outils
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { ScoreCanvas }       from "../components/ScoreCanvas";
 import { DrumGrid }          from "../components/DrumGrid";
+import { MuseScorePanel }    from "../components/MuseScorePanel";
 import { DrummerView }       from "../components/DrummerView";
 import { DrumAnimationView } from "../components/DrumAnimationView";
 import { DrummerVisualizer } from "../components/DrummerVisualizer";
@@ -21,120 +24,33 @@ import { DrumKitSelector }   from "../components/DrumKitSelector";
 import { DrumMixer }         from "../components/DrumMixer";
 import { MetronomePanel }    from "../components/MetronomePanel";
 import { HumanizePanel }     from "../components/HumanizePanel";
+import { FloatingPanel }    from "../components/FloatingPanel";
 import { EnergyTimeline }    from "../components/EnergyTimeline";
+import { PropertiesPanel }   from "../components/PropertiesPanel";
 import { useProjectStore }   from "../../store/projectStore";
+import { useUiStore }        from "../../store/uiStore";
 import { analyzeVelocity }   from "../../render/velocityAnalyzer";
 import { LIMB_COLOR, computeLimbStats, crossoverCount, avgConfidence } from "../../analysis/limbAnalyzer";
 import { summarizePlayability } from "../../analysis/playabilityEngine";
-import type { QuantizeGrid }    from "../../core/types";
+import type { QuantizeGrid, DrumPiece } from "../../core/types";
 
-// ─── Toolbar primitives ───────────────────────────────────────────────────────
-
-/** Compact toolbar button — active state is white-bg only, never coloured. */
-const Btn = ({
-  active = false,
-  onClick,
-  children,
-  danger = false,
-  title,
-}: {
-  active?: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-  danger?: boolean;
-  title?: string;
-}) => (
-  <button
-    type="button"
-    title={title}
-    onClick={onClick}
-    style={{
-      padding: "3px 9px",
-      borderRadius: 5,
-      fontSize: 11,
-      fontWeight: active ? 600 : 400,
-      background:   danger  ? "rgba(255,69,58,0.12)"
-                  : active  ? "var(--sel-bg)"
-                  : "transparent",
-      color:        danger  ? "var(--c-red)"
-                  : active  ? "var(--tx-1)"
-                  : "var(--tx-3)",
-      border: `1px solid ${
-        danger  ? "rgba(255,69,58,0.20)" :
-        active  ? "var(--sel-border)" :
-        "transparent"
-      }`,
-      cursor: "pointer",
-      transition: "background 0.12s, color 0.12s, border-color 0.12s",
-      whiteSpace: "nowrap" as const,
-    }}
-  >
-    {children}
-  </button>
-);
-
-/** Thin vertical separator in toolbar. */
-const Sep = () => (
-  <div style={{ width: 1, height: 14, flexShrink: 0, background: "var(--sep)", margin: "0 2px" }} />
-);
-
-/** Tiny uppercase group label. */
-const GroupLabel = ({ children }: { children: React.ReactNode }) => (
-  <span style={{
-    fontSize: 9,
-    fontWeight: 600,
-    textTransform: "uppercase" as const,
-    letterSpacing: "0.08em",
-    color: "var(--tx-4)",
-    userSelect: "none",
-    flexShrink: 0,
-  }}>
-    {children}
-  </span>
-);
-
-// ─── View mode switcher ───────────────────────────────────────────────────────
+// ─── View modes ───────────────────────────────────────────────────────────────
 
 type ViewMode = "score" | "grid" | "drummer" | "animation" | "body";
 
-const VIEW_CONFIG: { id: ViewMode; label: string }[] = [
-  { id: "score",     label: "Partition" },
-  { id: "grid",      label: "Grille"   },
-  { id: "drummer",   label: "Batteur"  },
-  { id: "animation", label: "Anim"     },
-  { id: "body",      label: "Corps"    },
+// Tab bar configuration (référence image)
+const VIEW_TABS: { id: ViewMode; label: string }[] = [
+  { id: "score",     label: "Partition"   },
+  { id: "drummer",   label: "Vue Batteur" },
+  { id: "grid",      label: "MIDI"        },
+  { id: "animation", label: "Animation"   },
+  { id: "body",      label: "Corps"       },
 ];
 
-const ViewSwitcher = ({ value, onChange }: { value: ViewMode; onChange: (v: ViewMode) => void }) => (
-  <div style={{
-    display: "flex",
-    background: "rgba(255,255,255,0.04)",
-    borderRadius: 7,
-    padding: 2,
-    gap: 1,
-    flexShrink: 0,
-  }}>
-    {VIEW_CONFIG.map(({ id, label }) => (
-      <button
-        key={id}
-        type="button"
-        onClick={() => onChange(id)}
-        style={{
-          padding: "3px 10px",
-          borderRadius: 5,
-          fontSize: 11,
-          fontWeight: value === id ? 600 : 400,
-          background:   value === id ? "rgba(255,255,255,0.08)" : "transparent",
-          color:        value === id ? "var(--tx-1)" : "var(--tx-3)",
-          border:       value === id ? "1px solid rgba(255,255,255,0.10)" : "1px solid transparent",
-          cursor: "pointer",
-          transition: "all 0.12s",
-        }}
-      >
-        {label}
-      </button>
-    ))}
-  </div>
+// ─── Shared primitives ────────────────────────────────────────────────────────
+
+const Sep = () => (
+  <div style={{ width: 1, height: 14, flexShrink: 0, background: "var(--sep)", margin: "0 3px" }} />
 );
 
 // ─── Limb legend ──────────────────────────────────────────────────────────────
@@ -142,27 +58,20 @@ const ViewSwitcher = ({ value, onChange }: { value: ViewMode; onChange: (v: View
 const LimbLegend = ({
   limbMap, limbMode, onModeChange,
 }: {
-  limbMap:    import("../../analysis/limbAnalyzer").LimbMap;
-  limbMode:   import("../../analysis/limbAnalyzer").StickingMode;
+  limbMap:      import("../../analysis/limbAnalyzer").LimbMap;
+  limbMode:     import("../../analysis/limbAnalyzer").StickingMode;
   onModeChange: (m: import("../../analysis/limbAnalyzer").StickingMode) => void;
 }) => {
   const stats  = computeLimbStats(limbMap);
   const xovers = crossoverCount(limbMap);
   const conf   = avgConfidence(limbMap);
   const LABELS = { RH: "M.Droite", LH: "M.Gauche", RF: "P.Droit", LF: "P.Gauche" } as const;
-
   return (
     <div style={{
-      display: "flex",
-      flexWrap: "wrap" as const,
-      alignItems: "center",
-      gap: 10,
-      padding: "6px 12px",
-      background: "var(--bg-2)",
-      borderRadius: 8,
-      fontSize: 11,
-      border: "1px solid var(--sep)",
-      flexShrink: 0,
+      display: "flex", flexWrap: "wrap" as const, alignItems: "center",
+      gap: 10, padding: "6px 12px",
+      background: "var(--bg-2)", borderRadius: 8, fontSize: 11,
+      border: "1px solid var(--sep)", flexShrink: 0,
     }}>
       {(["RH","LH","RF","LF"] as const).map((l) => (
         <div key={l} style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -188,15 +97,9 @@ const LimbLegend = ({
       <Sep />
       {(["strict","human","advanced"] as const).map((m) => (
         <button key={m} type="button" onClick={() => onModeChange(m)}
-          style={{
-            padding: "2px 8px", borderRadius: 4, fontSize: 10, cursor: "pointer",
-            fontWeight: limbMode === m ? 600 : 400,
-            background: limbMode === m ? "var(--sel-bg)" : "transparent",
-            color:      limbMode === m ? "var(--tx-1)"  : "var(--tx-3)",
-            border:     limbMode === m ? "1px solid var(--sel-border)" : "1px solid transparent",
-            transition: "all 0.1s",
-          }}
-        >{m}</button>
+          className={`tb-btn${limbMode === m ? " active" : ""}`}
+          style={{ fontSize: 10 }}
+        >{{ strict: "Strict", human: "Humain", advanced: "Avancé" }[m]}</button>
       ))}
     </div>
   );
@@ -206,13 +109,13 @@ const LimbLegend = ({
 
 const EmptyState = ({ onImport, onNew }: { onImport: () => void; onNew: () => void }) => (
   <div style={{ display: "flex", height: "100%", alignItems: "center", justifyContent: "center" }}>
-    <div style={{ textAlign: "center", maxWidth: 340 }}>
+    <div style={{ textAlign: "center", maxWidth: 320 }}>
       <div style={{
         width: 64, height: 64, borderRadius: 18, margin: "0 auto 20px",
         display: "flex", alignItems: "center", justifyContent: "center",
         background: "var(--bg-3)", border: "1px solid var(--sep)",
       }}>
-        <svg width="28" height="24" viewBox="0 0 36 30" fill="none" opacity="0.35">
+        <svg width="28" height="24" viewBox="0 0 36 30" fill="none" opacity="0.28">
           <circle cx="18" cy="19" r="9" stroke="var(--tx-2)" strokeWidth="2" fill="none"/>
           <circle cx="18" cy="19" r="5" stroke="var(--tx-2)" strokeWidth="1.2" fill="none"/>
           <ellipse cx="9" cy="13" rx="4.5" ry="2.2" stroke="var(--tx-2)" strokeWidth="1.8" fill="none"/>
@@ -221,27 +124,27 @@ const EmptyState = ({ onImport, onNew }: { onImport: () => void; onNew: () => vo
           <line x1="18" y1="10" x2="9"  y2="4" stroke="var(--tx-2)" strokeWidth="1.8" strokeLinecap="round"/>
         </svg>
       </div>
-      <p style={{ fontSize: 15, fontWeight: 600, color: "var(--tx-1)", margin: "0 0 8px" }}>
+      <p style={{ fontSize: 15, fontWeight: 600, color: "var(--tx-1)", margin: "0 0 6px" }}>
         Prêt à composer
       </p>
-      <p style={{ fontSize: 12, color: "var(--tx-3)", margin: "0 0 24px", lineHeight: 1.6 }}>
+      <p style={{ fontSize: 12, color: "var(--tx-3)", margin: "0 0 24px", lineHeight: 1.65 }}>
         Déposez un fichier MIDI ici, ou importez depuis la barre supérieure.
       </p>
       <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
         <button
-          type="button"
-          onClick={onImport}
+          type="button" onClick={onImport}
           style={{
             padding: "9px 20px", borderRadius: 9, fontSize: 12, fontWeight: 600, cursor: "pointer",
-            background: "rgba(255,255,255,0.09)", color: "var(--tx-1)",
-            border: "1px solid rgba(255,255,255,0.14)", transition: "background 0.12s",
+            background: "var(--accent)", color: "#fff",
+            border: "none", transition: "opacity 0.12s",
           }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = "0.85"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = "1"; }}
         >
           Importer MIDI
         </button>
         <button
-          type="button"
-          onClick={onNew}
+          type="button" onClick={onNew}
           style={{
             padding: "9px 20px", borderRadius: 9, fontSize: 12, fontWeight: 500, cursor: "pointer",
             background: "transparent", color: "var(--tx-3)",
@@ -255,28 +158,6 @@ const EmptyState = ({ onImport, onNew }: { onImport: () => void; onNew: () => vo
   </div>
 );
 
-// ─── Inspector stat cell ──────────────────────────────────────────────────────
-
-const StatCell = ({ label, value }: { label: string; value: string | number }) => (
-  <div style={{
-    padding: "7px 8px",
-    borderRadius: 7,
-    background: "var(--bg-2)",
-    border: "1px solid var(--sep)",
-  }}>
-    <p style={{
-      fontSize: 9,
-      textTransform: "uppercase" as const,
-      letterSpacing: "0.07em",
-      color: "var(--tx-4)",
-      margin: "0 0 2px",
-    }}>{label}</p>
-    <p style={{ fontSize: 12, fontWeight: 600, color: "var(--tx-1)", margin: 0, fontFamily: "monospace" }}>
-      {value}
-    </p>
-  </div>
-);
-
 // ─── Main component ───────────────────────────────────────────────────────────
 
 interface ComposePageProps { onImportMidi: () => void; }
@@ -284,41 +165,50 @@ interface ComposePageProps { onImportMidi: () => void; }
 export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
 
   // ── Local UI state ────────────────────────────────────────────────────────
-  const [selectedHitId,  setSelectedHitId] = useState<string | null>(null);
-  const [viewMode,       setViewMode]      = useState<ViewMode>("score");
-  const [showAiPanel,    setShowAiPanel]   = useState(false);
-  const [showKitBalance, setShowKitBalance]= useState(false);
-  const [showMixer,      setShowMixer]     = useState(false);
-  const [showMetronome,  setShowMetronome] = useState(false);
-  const [showHumanize,   setShowHumanize]  = useState(false);
-  const [showEdu,        setShowEdu]       = useState(false);
+  const [selectedHitId, setSelectedHitId] = useState<string | null>(null);
+  const [viewMode,      setViewMode]      = useState<ViewMode>("score");
+  const [showEdu,       setShowEdu]       = useState(false);
+
+  // Panneaux flottants — état partagé avec AppMenuBar via uiStore
+  const {
+    showHumanize, showMixer, showMetronome, showKitBalance, showAiPanel,
+    openPanel, closePanel,
+  } = useUiStore();
+
+  const setShowHumanize   = (v: boolean) => v ? openPanel("humanize")   : closePanel("humanize");
+  const setShowMixer      = (v: boolean) => v ? openPanel("mixer")       : closePanel("mixer");
+  const setShowMetronome  = (v: boolean) => v ? openPanel("metronome")   : closePanel("metronome");
+  const setShowKitBalance = (v: boolean) => v ? openPanel("balance")     : closePanel("balance");
+  const setShowAiPanel    = (v: boolean) => v ? openPanel("ai")          : closePanel("ai");
 
   // ── Store ─────────────────────────────────────────────────────────────────
   const {
-    project, rhythm, quantizeOptions, zoomX, zoomY, activeTick, message,
-    setGrid, setPreserveGroove, setZoomX, setZoomY,
-    stop, rewindToStart, moveHit, removeHit, addHit, setHitVelocity,
+    project, rhythm, quantizeOptions, zoomX, activeTick,
+    setGrid, setPreserveGroove, setZoomX,
+    stop, rewindToStart, moveHit, removeHit, addHit, setHitVelocity, setHitDuration, pasteHits,
+    setHitType, setHitProbability, toggleHitMute, undo, redo,
     newProject, togglePlayback,
-    heatmap, setHeatmap, preview, setPreview, cleanup, setCleanup,
+    heatmap, setHeatmap, preview, setPreview,
     quantizedHits, isPlaying,
     limbMap, limbMode, showLimbAnalysis, setLimbMode, setShowLimbAnalysis,
     playabilityMap, showPlayabilityOverlay, setShowPlayabilityOverlay,
     sections, showSectionTimeline, setShowSectionTimeline,
-    seekTo, activeDrumKit,
+    seekTo,
     energyFlow, showEnergyTimeline, setShowEnergyTimeline,
     humanize,
   } = useProjectStore();
 
   const velocityStats    = useMemo(() => analyzeVelocity(project?.hits ?? []), [project?.hits]);
-  const signatureText    = `${project?.timeSignature.numerator ?? 4}/${project?.timeSignature.denominator ?? 4}`;
-  const editableHits     = useMemo(
-    () => (project?.hits ?? []).slice(0, 80).map((h) => ({ id: h.id, label: `${h.piece} @ ${h.tick}` })),
-    [project?.hits]
-  );
   const playabilityBadge = useMemo(() => summarizePlayability(playabilityMap), [playabilityMap]);
   const isScoreView      = viewMode === "score";
 
-  // ── Keyboard shortcuts ────────────────────────────────────────────────────
+  // Derive selected piece from selected hit id
+  const selectedPiece = useMemo((): DrumPiece | null => {
+    if (!selectedHitId || !project) return null;
+    return project.hits.find((h) => h.id === selectedHitId)?.piece ?? null;
+  }, [selectedHitId, project]);
+
+  // ── Keyboard ──────────────────────────────────────────────────────────────
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
@@ -339,33 +229,44 @@ export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", background: "var(--bg-app)" }}>
 
-      {/* ── Toolbar ── */}
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap" as const,
-          alignItems: "center",
-          gap: 6,
-          padding: "5px 12px",
-          borderBottom: "1px solid var(--sep)",
-          background: "var(--bg-1)",
-          flexShrink: 0,
-        }}
-      >
-        {/* ── Group: Edit ── */}
-        <GroupLabel>Edit</GroupLabel>
-        <select
-          value={quantizeOptions.grid}
-          onChange={(e) => setGrid(e.target.value as QuantizeGrid)}
-          style={{
-            padding: "3px 6px", borderRadius: 5, fontSize: 11,
-            background: "var(--bg-3)", color: "var(--tx-2)",
-            border: "1px solid var(--sep)", cursor: "pointer",
-          }}
-        >
-          {["1/4","1/8","1/16","1/32","8T","16T"].map((v) => <option key={v}>{v}</option>)}
-        </select>
-        <label style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
+      {/* ── Toolbar (minimal) ── */}
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 4,
+        padding: "0 12px",
+        borderBottom: "1px solid var(--sep)",
+        background: "var(--bg-1)",
+        flexShrink: 0,
+        height: 36,
+      }}>
+        {/* Kit selector */}
+        <div style={{ flexShrink: 0 }}>
+          <DrumKitSelector />
+        </div>
+
+        <Sep />
+
+        {/* Quantize grid */}
+        <label style={{ display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+          <span style={{ fontSize: 9, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--tx-4)" }}>
+            Grille
+          </span>
+          <select
+            value={quantizeOptions.grid}
+            onChange={(e) => setGrid(e.target.value as QuantizeGrid)}
+            style={{
+              padding: "2px 5px", borderRadius: 5, fontSize: 11,
+              background: "var(--bg-3)", color: "var(--tx-2)",
+              border: "1px solid var(--sep)", cursor: "pointer", outline: "none",
+            }}
+          >
+            {["1/4","1/8","1/16","1/32","8T","16T"].map((v) => <option key={v}>{v}</option>)}
+          </select>
+        </label>
+
+        {/* Groove checkbox */}
+        <label style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer", flexShrink: 0 }}>
           <input
             type="checkbox"
             checked={quantizeOptions.preserveGroove}
@@ -377,90 +278,114 @@ export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
 
         <Sep />
 
-        {/* ── Group: Zoom ── */}
-        <GroupLabel>Zoom</GroupLabel>
-        {(["X","Y"] as const).map((axis) => {
-          const val  = axis === "X" ? zoomX : zoomY;
-          const setVal = axis === "X" ? setZoomX : setZoomY;
+        {/* Zoom X */}
+        <label style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+          <span style={{ fontSize: 9, color: "var(--tx-4)", width: 8 }}>X</span>
+          <input
+            type="range" min={0.7} max={2} step={0.1} value={zoomX}
+            onChange={(e) => setZoomX(Number(e.target.value))}
+            className="compact-range"
+            style={{ width: 52 }}
+          />
+          <span style={{ fontSize: 10, color: "var(--tx-3)", width: 26, textAlign: "right", fontFamily: "monospace", flexShrink: 0 }}>
+            {Math.round(zoomX * 100)}%
+          </span>
+        </label>
+
+        {/* Outils + overlays — droite */}
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 2 }}>
+          {/* Overlays score (contextuel) */}
+          {isScoreView && project && (<>
+            <button className={`tb-btn${heatmap.enabled ? " active" : ""}`} type="button" onClick={() => setHeatmap({ enabled: !heatmap.enabled })}>Chaleur</button>
+            <button className={`tb-btn${showLimbAnalysis ? " active" : ""}`} type="button" onClick={() => setShowLimbAnalysis(!showLimbAnalysis)}>Membres</button>
+            <Sep />
+          </>)}
+          {/* Panneaux avancés */}
+          <button className={`tb-btn${showHumanize ? " active" : ""}`} type="button" onClick={() => setShowHumanize(!showHumanize)}>
+            Humaniser{humanize.enabled ? " ●" : ""}
+          </button>
+          <button className={`tb-btn${showMixer ? " active" : ""}`} type="button" onClick={() => setShowMixer(!showMixer)}>Mixeur</button>
+          {project && <button className={`tb-btn${showKitBalance ? " active" : ""}`} type="button" onClick={() => setShowKitBalance(!showKitBalance)}>Balance</button>}
+          <Sep />
+          <button className={`tb-btn${showAiPanel ? " active" : ""}`} type="button" onClick={() => setShowAiPanel(!showAiPanel)}>IA</button>
+          {viewMode === "body" && (
+            <button className={`tb-btn${showEdu ? " active" : ""}`} type="button" onClick={() => setShowEdu((v) => !v)}>Tutoriel</button>
+          )}
+          {/* Édition note sélectionnée */}
+          {selectedHitId && (<>
+            <Sep />
+            <button className="tb-btn" type="button" onClick={() => moveHit(selectedHitId, -24)}>← Tick</button>
+            <button className="tb-btn" type="button" onClick={() => moveHit(selectedHitId,  24)}>Tick →</button>
+            <button className="tb-btn danger" type="button" onClick={() => { removeHit(selectedHitId); setSelectedHitId(null); }}>Supprimer</button>
+          </>)}
+        </div>
+      </div>
+
+      {/* ── Tab bar vues (style référence) ── */}
+      <div style={{
+        display: "flex",
+        alignItems: "stretch",
+        borderBottom: "1px solid var(--sep)",
+        background: "var(--bg-2)",
+        flexShrink: 0,
+        height: 34,
+        padding: "0 8px",
+        gap: 2,
+      }}>
+        {VIEW_TABS.map(({ id, label }) => {
+          const active = viewMode === id;
           return (
-            <label key={axis} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <span style={{ fontSize: 10, color: "var(--tx-4)", width: 8 }}>{axis}</span>
-              <input
-                type="range" min={0.7} max={2} step={0.1} value={val}
-                onChange={(e) => setVal(Number(e.target.value))}
-                style={{ width: 52, accentColor: "var(--tx-3)" }}
-              />
-              <span style={{ fontSize: 10, color: "var(--tx-3)", width: 28, textAlign: "right", fontFamily: "monospace" }}>
-                {Math.round(val * 100)}%
-              </span>
-            </label>
+            <button
+              key={id}
+              type="button"
+              onClick={() => setViewMode(id)}
+              style={{
+                height: "100%",
+                padding: "0 14px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 12,
+                fontWeight: active ? 600 : 400,
+                color: active ? "var(--tx-1)" : "var(--tx-3)",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                borderBottom: active ? "2px solid var(--accent)" : "2px solid transparent",
+                transition: "color 0.12s, border-color 0.12s",
+                marginBottom: "-1px",
+                whiteSpace: "nowrap" as const,
+              }}
+              onMouseEnter={(e) => {
+                if (!active) (e.currentTarget as HTMLElement).style.color = "var(--tx-2)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.color = active ? "var(--tx-1)" : "var(--tx-3)";
+              }}
+            >
+              {label}
+            </button>
           );
         })}
 
-        <Sep />
-
-        {/* ── Group: Kit ── */}
-        <GroupLabel>Kit</GroupLabel>
-        <DrumKitSelector />
-
-        <Sep />
-
-        {/* ── Group: View ── */}
-        <GroupLabel>Vue</GroupLabel>
-        <ViewSwitcher value={viewMode} onChange={setViewMode} />
-
-        <Sep />
-
-        {/* ── Group: Overlays ── */}
-        <GroupLabel>Affichage</GroupLabel>
-        <Btn active={heatmap.enabled} onClick={() => setHeatmap({ enabled: !heatmap.enabled })}>Chaleur</Btn>
-        <Btn active={preview.enabled} onClick={() => setPreview({ enabled: !preview.enabled })}>Son</Btn>
-        {isScoreView && project && (
-          <Btn active={cleanup.enabled} onClick={() => setCleanup({ enabled: !cleanup.enabled })}>Nettoyer</Btn>
-        )}
-
-        {/* Score-only analysis */}
-        {isScoreView && project && (<>
-          <Btn active={showLimbAnalysis} onClick={() => setShowLimbAnalysis(!showLimbAnalysis)}>Membres</Btn>
-          <Btn active={showSectionTimeline} onClick={() => setShowSectionTimeline(!showSectionTimeline)}>Sections</Btn>
-          <Btn
-            active={showPlayabilityOverlay}
-            onClick={() => setShowPlayabilityOverlay(!showPlayabilityOverlay)}
-          >
-            Jouabilité
-            {playabilityBadge.errorCount > 0 && (
-              <span style={{
-                marginLeft: 4, padding: "0 4px", borderRadius: 9, fontSize: 9, fontWeight: 700,
-                background: "rgba(255,69,58,0.18)", color: "var(--c-red)",
-              }}>
-                {playabilityBadge.errorCount}
-              </span>
-            )}
-          </Btn>
-        </>)}
-        {project && <Btn active={showEnergyTimeline} onClick={() => setShowEnergyTimeline(!showEnergyTimeline)}>Énergie</Btn>}
-        {viewMode === "body" && <Btn active={showEdu} onClick={() => setShowEdu((v) => !v)}>Tutoriel</Btn>}
-
-        <Sep />
-
-        {/* ── Group: Panels ── */}
-        <GroupLabel>Panneaux</GroupLabel>
-        <Btn active={showAiPanel}    onClick={() => setShowAiPanel((v) => !v)}>AI</Btn>
-        <Btn active={showHumanize}   onClick={() => setShowHumanize((v) => !v)}>
-          Humaniser{humanize.enabled ? " ●" : ""}
-        </Btn>
-        <Btn active={showMixer}      onClick={() => setShowMixer((v) => !v)}>Mixeur</Btn>
-        <Btn active={showMetronome}  onClick={() => setShowMetronome((v) => !v)}>Métro</Btn>
-        {project && <Btn active={showKitBalance} onClick={() => setShowKitBalance((v) => !v)}>Balance</Btn>}
-
-        {/* Context: hit selected */}
-        {selectedHitId && (<>
-          <Sep />
-          <GroupLabel>Note</GroupLabel>
-          <Btn onClick={() => moveHit(selectedHitId, -24)}>← Tick</Btn>
-          <Btn onClick={() => moveHit(selectedHitId,  24)}>Tick →</Btn>
-          <Btn danger onClick={() => { removeHit(selectedHitId); setSelectedHitId(null); }}>Supprimer</Btn>
-        </>)}
+        {/* Right side: overlay quick toggles */}
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 2 }}>
+          {project && isScoreView && (<>
+            <button className={`tb-btn${showSectionTimeline ? " active" : ""}`} type="button" style={{ fontSize: 10 }}
+              onClick={() => setShowSectionTimeline(!showSectionTimeline)}>Sections</button>
+            <button className={`tb-btn${showPlayabilityOverlay ? " active" : ""}`} type="button" style={{ fontSize: 10 }}
+              onClick={() => setShowPlayabilityOverlay(!showPlayabilityOverlay)}>
+              Jouabilité
+              {playabilityBadge.errorCount > 0 && (
+                <span style={{ marginLeft: 3, padding: "0 3px", borderRadius: 8, fontSize: 8, fontWeight: 700, background: "rgba(255,69,58,0.18)", color: "var(--c-red)" }}>
+                  {playabilityBadge.errorCount}
+                </span>
+              )}
+            </button>
+            <button className={`tb-btn${showEnergyTimeline ? " active" : ""}`} type="button" style={{ fontSize: 10 }}
+              onClick={() => setShowEnergyTimeline(!showEnergyTimeline)}>Énergie</button>
+          </>)}
+        </div>
       </div>
 
       {/* ── Energy timeline ── */}
@@ -487,7 +412,7 @@ export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
         </div>
       )}
 
-      {/* ── Score extras (section map, isolation) ── */}
+      {/* ── Section timeline + isolation ── */}
       {project && rhythm && isScoreView && (
         <div style={{ flexShrink: 0, background: "var(--bg-1)" }}>
           {showSectionTimeline && sections.length > 0 && (
@@ -510,27 +435,24 @@ export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
           {project && rhythm ? (
             isScoreView ? (
               <>
-                <ScoreCanvas
-                  rhythm={rhythm} ppq={project.ppq} signature={project.timeSignature}
-                  activeTick={activeTick} zoomX={zoomX} zoomY={zoomY}
-                  heatmap={heatmap} cleanup={cleanup} previewEnabled={preview.enabled}
-                  hits={project.hits} limbMap={limbMap} showLimbAnalysis={showLimbAnalysis}
-                  playabilityMap={playabilityMap} showPlayabilityOverlay={showPlayabilityOverlay}
-                  sections={sections} showSectionTimeline={showSectionTimeline}
-                />
+                <MuseScorePanel project={project} />
                 {showLimbAnalysis && (
                   <LimbLegend limbMap={limbMap} limbMode={limbMode} onModeChange={setLimbMode} />
                 )}
               </>
             ) : viewMode === "grid" ? (
-              <div style={{
-                flex: 1, overflow: "auto", borderRadius: 8,
-                background: "var(--bg-2)", border: "1px solid var(--sep)",
-              }}>
+              <div style={{ flex: 1, overflow: "auto", borderRadius: 8, background: "var(--bg-2)", border: "1px solid var(--sep)" }}>
                 <DrumGrid
                   project={project} quantizeGrid={quantizeOptions.grid}
                   activeTick={activeTick} heatmap={heatmap} previewEnabled={preview.enabled}
-                  onAddHit={addHit} onRemoveHit={removeHit} onMoveHit={moveHit} onSetVelocity={setHitVelocity}
+                  onAddHit={addHit} onRemoveHit={removeHit} onMoveHit={moveHit}
+                  onSetVelocity={setHitVelocity} onSetDuration={setHitDuration}
+                  onPasteHits={pasteHits}
+                  onToggleMute={toggleHitMute}
+                  onSetNoteType={setHitType}
+                  onSetProbability={setHitProbability}
+                  onUndo={undo}
+                  onRedo={redo}
                 />
               </div>
             ) : viewMode === "drummer" ? (
@@ -554,126 +476,15 @@ export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
           )}
         </div>
 
-        {/* ── Right side: optional panels + permanent inspector ── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 0, overflow: "auto" }}>
-          {showHumanize   && (
-            <div className="slide-in-right" style={{ flexShrink: 0 }}>
-              <HumanizePanel  onClose={() => setShowHumanize(false)} />
-            </div>
-          )}
-          {showMetronome  && (
-            <div className="slide-in-right" style={{ flexShrink: 0 }}>
-              <MetronomePanel onClose={() => setShowMetronome(false)} />
-            </div>
-          )}
-          {showMixer      && (
-            <div className="slide-in-right" style={{ flexShrink: 0 }}>
-              <DrumMixer      onClose={() => setShowMixer(false)} />
-            </div>
-          )}
-          {showKitBalance && (
-            <div className="slide-in-right" style={{ flexShrink: 0 }}>
-              <KitBalancePanel onClose={() => setShowKitBalance(false)} />
-            </div>
-          )}
-          {showAiPanel    && (
-            <div className="slide-in-right" style={{ flexShrink: 0 }}>
-              <AiPanel        onClose={() => setShowAiPanel(false)} />
-            </div>
-          )}
+        {/* ── Panneaux flottants (portals — flottent au-dessus de toute l'interface) ── */}
+        {showHumanize  && <FloatingPanel id="humanize"  title="Humanisation"><HumanizePanel   onClose={() => closePanel("humanize")}  embedded /></FloatingPanel>}
+        {showMetronome && <FloatingPanel id="metronome" title="Métronome"    ><MetronomePanel  embedded /></FloatingPanel>}
+        {showMixer     && <FloatingPanel id="mixer"     title="Mixeur"       ><DrumMixer       onClose={() => closePanel("mixer")}     embedded /></FloatingPanel>}
+        {showKitBalance && <FloatingPanel id="balance"  title="Kit Balance"  ><KitBalancePanel onClose={() => closePanel("balance")}  embedded /></FloatingPanel>}
+        {showAiPanel   && <FloatingPanel id="ai"        title="Analyse IA"   ><AiPanel         onClose={() => closePanel("ai")}       embedded /></FloatingPanel>}
 
-          {/* ── Permanent inspector ── */}
-          <div style={{
-            width: 216,
-            flexShrink: 0,
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-            padding: 12,
-            overflow: "auto",
-            borderLeft: "1px solid var(--sep)",
-            background: "var(--bg-1)",
-            flex: 1,
-          }}>
-            <p style={{
-              fontSize: 9, fontWeight: 700, textTransform: "uppercase" as const,
-              letterSpacing: "0.09em", color: "var(--tx-4)", margin: 0,
-            }}>
-              Inspecteur
-            </p>
-
-            {/* Stats grid */}
-            {project ? (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-                <StatCell label="Notes"  value={project.hits.length} />
-                <StatCell label="BPM"    value={project.tempoBpm.toFixed(0)} />
-                <StatCell label="Sig"    value={signatureText} />
-                <StatCell label="Kit"    value={activeDrumKit.name} />
-              </div>
-            ) : (
-              <p style={{ fontSize: 11, color: "var(--tx-4)", margin: 0 }}>Aucun projet chargé</p>
-            )}
-
-            {/* System message */}
-            {message && (
-              <p style={{ fontSize: 11, color: "var(--tx-3)", lineHeight: 1.5, margin: 0 }}>{message}</p>
-            )}
-
-            {/* Kit indicator */}
-            {project && (
-              <div style={{
-                display: "flex", alignItems: "center", gap: 6,
-                padding: "6px 8px", borderRadius: 7,
-                background: "var(--bg-2)", border: "1px solid var(--sep)",
-              }}>
-                <span style={{
-                  width: 8, height: 8, borderRadius: "50%",
-                  backgroundColor: activeDrumKit.color, flexShrink: 0,
-                }} />
-                <span style={{ fontSize: 11, color: "var(--tx-2)", fontWeight: 500 }}>
-                  {activeDrumKit.name}
-                </span>
-                {isPlaying && (
-                  <span
-                    className="play-dot"
-                    style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--c-green)", marginLeft: "auto" }}
-                  />
-                )}
-              </div>
-            )}
-
-            {/* Editable hit list */}
-            {editableHits.length > 0 && (
-              <div>
-                <p style={{
-                  fontSize: 9, textTransform: "uppercase" as const,
-                  letterSpacing: "0.08em", color: "var(--tx-4)", margin: "0 0 6px",
-                }}>
-                  Notes
-                </p>
-                <div style={{ maxHeight: 200, overflowY: "auto" }}>
-                  {editableHits.map((hit) => (
-                    <button
-                      key={hit.id}
-                      type="button"
-                      onClick={() => setSelectedHitId(hit.id)}
-                      style={{
-                        display: "block", width: "100%", textAlign: "left",
-                        padding: "3px 6px", borderRadius: 4, marginBottom: 1,
-                        fontSize: 10, cursor: "pointer", transition: "all 0.1s",
-                        background:   selectedHitId === hit.id ? "var(--sel-bg)"    : "transparent",
-                        color:        selectedHitId === hit.id ? "var(--tx-1)"      : "var(--tx-3)",
-                        border:       selectedHitId === hit.id ? "1px solid var(--sel-border)" : "1px solid transparent",
-                      }}
-                    >
-                      {hit.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        {/* ── Properties Panel (right, permanent) ── */}
+        <PropertiesPanel selectedPiece={selectedPiece} />
       </div>
     </div>
   );

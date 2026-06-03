@@ -476,7 +476,7 @@ const MasterFader = ({
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
-export const DrumMixer = ({ onClose }: { onClose?: () => void }) => {
+export const DrumMixer = ({ onClose, embedded = false }: { onClose?: () => void; embedded?: boolean }) => {
   const {
     activeDrumKit,
     drumMixer,
@@ -514,61 +514,67 @@ export const DrumMixer = ({ onClose }: { onClose?: () => void }) => {
 
   return (
     <div style={{
-      borderRadius: 14,
-      border: "1px solid var(--sep-2)",
-      background: "var(--bg-2)",
-      boxShadow: "var(--shadow-lg)",
-      overflow: "hidden",
-      flexShrink: 0,
+      borderRadius: embedded ? 0 : 14,
+      border:       embedded ? "none" : "1px solid var(--sep-2)",
+      background:   embedded ? "transparent" : "var(--bg-2)",
+      boxShadow:    embedded ? "none" : "var(--shadow-lg)",
+      overflow:     "hidden",
+      flexShrink:   0,
+      height:       embedded ? "100%" : undefined,
+      display:      "flex",
+      flexDirection:"column" as const,
     }}>
-      {/* ── En-tête ── */}
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "9px 14px",
-        borderBottom: "1px solid var(--sep)",
-        background: "var(--bg-1)",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{
-            width: 8, height: 8, borderRadius: "50%",
-            backgroundColor: activeDrumKit.color,
-            boxShadow: `0 0 6px 1px ${activeDrumKit.color}66`,
-          }} />
-          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--tx-1)" }}>
-            Mixeur — {activeDrumKit.name}
-          </span>
-        </div>
-        <div style={{ display: "flex", gap: 6 }}>
-          <button
-            type="button"
-            onClick={handleResetAll}
-            style={{
-              fontSize: 10, padding: "3px 8px", borderRadius: 5,
-              background: "transparent", color: "var(--tx-3)",
-              border: "1px solid var(--sep)", cursor: "pointer",
-              transition: "all 0.12s",
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--tx-1)"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--tx-3)"; }}
-          >
-            Réinitialiser
-          </button>
-          {onClose && (
+      {/* ── En-tête (masqué si embedded) ── */}
+      {!embedded && (
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "9px 14px",
+          borderBottom: "1px solid var(--sep)",
+          background: "var(--bg-1)",
+          flexShrink: 0,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{
+              width: 8, height: 8, borderRadius: "50%",
+              backgroundColor: activeDrumKit.color,
+              boxShadow: `0 0 6px 1px ${activeDrumKit.color}66`,
+            }} />
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--tx-1)" }}>
+              Mixeur — {activeDrumKit.name}
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleResetAll}
               style={{
-                width: 22, height: 22, borderRadius: 5,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                background: "var(--bg-3)", border: "none",
-                cursor: "pointer", fontSize: 14, color: "var(--tx-3)",
+                fontSize: 10, padding: "3px 8px", borderRadius: 5,
+                background: "transparent", color: "var(--tx-3)",
+                border: "1px solid var(--sep)", cursor: "pointer",
+                transition: "all 0.12s",
               }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--tx-1)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--tx-3)"; }}
             >
-              ×
+              Réinitialiser
             </button>
-          )}
+            {onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                style={{
+                  width: 22, height: 22, borderRadius: 5,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  background: "var(--bg-3)", border: "none",
+                  cursor: "pointer", fontSize: 14, color: "var(--tx-3)",
+                }}
+              >
+                ×
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ── Console ── */}
       <div style={{ padding: "10px 10px 8px" }}>

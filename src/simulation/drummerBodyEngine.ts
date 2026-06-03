@@ -30,6 +30,7 @@ export const KIT_POSITIONS: Record<DrumPiece, DrumPosition> = {
   snare:       { x:  0,  y:  0   },
   snareRim:    { x:  0,  y:  0   },
   kick:        { x:  0,  y: -4   },
+  kick2:       { x:  1,  y: -4   },
   tomHigh:     { x:  2,  y:  1.5 },
   tomMid:      { x:  4,  y:  1   },
   tomLow:      { x:  6,  y: -1   },

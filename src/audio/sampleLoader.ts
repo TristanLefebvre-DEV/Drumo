@@ -23,6 +23,7 @@ export interface SampleEntry {
 
 const PIECE_FILENAMES: Record<DrumPiece, string> = {
   kick:        "kick.wav",
+  kick2:       "kick.wav",
   snare:       "snare.wav",
   snareRim:    "snare_rim.wav",
   hihatClosed: "hihat_closed.wav",

@@ -54,6 +54,7 @@ const PV: Record<DrumPiece, PieceVisual> = {
   snare:       { rx: 0.70, ry: 0.70, baseColor: "#e2e8f0", label: "SN",  isCymbal: false },
   snareRim:    { rx: 0.70, ry: 0.70, baseColor: "#94a3b8", label: "RIM", isCymbal: false },
   kick:        { rx: 1.10, ry: 1.10, baseColor: "#1e3a5f", label: "BD",  isCymbal: false },
+  kick2:       { rx: 1.10, ry: 1.10, baseColor: "#1e4a6f", label: "BD2", isCymbal: false },
   hihatClosed: { rx: 0.85, ry: 0.28, baseColor: "#fbbf24", label: "HH",  isCymbal: true  },
   hihatOpen:   { rx: 0.85, ry: 0.28, baseColor: "#fcd34d", label: "HHo", isCymbal: true  },
   hihatPedal:  { rx: 0.45, ry: 0.18, baseColor: "#d97706", label: "HHp", isCymbal: true  },

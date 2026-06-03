@@ -119,6 +119,7 @@ export interface DrumKit {
 /** Map DrumPiece → which mixer channel controls its volume */
 export const PIECE_TO_MIXER_CHANNEL: Record<DrumPiece, keyof DrumKitMixer> = {
   kick:        "kickVolume",
+  kick2:       "kickVolume",
   snare:       "snareVolume",
   snareRim:    "snareVolume",
   hihatClosed: "hihatVolume",

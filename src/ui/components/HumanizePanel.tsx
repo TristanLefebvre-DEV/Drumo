@@ -222,9 +222,9 @@ const ProfileSelector = ({
 
 // ─── Panneau principal ────────────────────────────────────────────────────────
 
-interface HumanizePanelProps { onClose: () => void; }
+interface HumanizePanelProps { onClose: () => void; embedded?: boolean; }
 
-export const HumanizePanel = ({ onClose }: HumanizePanelProps) => {
+export const HumanizePanel = ({ onClose, embedded = false }: HumanizePanelProps) => {
   const { humanize, setHumanize, project, isPlaying } = useProjectStore();
 
   const enabled = humanize.enabled;
@@ -236,66 +236,68 @@ export const HumanizePanel = ({ onClose }: HumanizePanelProps) => {
 
   return (
     <div style={{
-      width: 284,
-      display: "flex",
-      flexDirection: "column",
-      gap: 8,
-      overflowY: "auto",
-      borderRadius: 14,
-      border: "1px solid var(--sep-2)",
-      background: "var(--bg-2)",
-      padding: 12,
-      boxShadow: "var(--shadow-md)",
-      maxHeight: "100%",
+      width:        embedded ? "100%" : 284,
+      display:      "flex",
+      flexDirection:"column",
+      gap:           8,
+      overflowY:    embedded ? undefined : "auto",
+      borderRadius: embedded ? 0 : 14,
+      border:       embedded ? "none" : "1px solid var(--sep-2)",
+      background:   embedded ? "transparent" : "var(--bg-2)",
+      padding:      embedded ? "10px 12px" : 12,
+      boxShadow:    embedded ? "none" : "var(--shadow-md)",
+      maxHeight:    embedded ? undefined : "100%",
     }}>
 
-      {/* ── En-tête ── */}
-      <div style={{
-        display: "flex", alignItems: "center",
-        justifyContent: "space-between", flexShrink: 0,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--tx-1)" }}>
-            Humanisation
-          </span>
-          <span style={{
-            padding: "1px 7px", borderRadius: 4, fontSize: 9, fontWeight: 700,
-            background: enabled ? "rgba(255,159,10,0.15)" : "var(--bg-3)",
-            color:      enabled ? "var(--c-orange)"       : "var(--tx-4)",
-            border:     `1px solid ${enabled ? "rgba(255,159,10,0.30)" : "var(--sep)"}`,
-          }}>
-            {enabled ? "ACTIF" : "INACTIF"}
-          </span>
-        </div>
-        <div style={{ display: "flex", gap: 5 }}>
-          <button
-            type="button"
-            onClick={() => setHumanize({ enabled: !enabled })}
-            style={{
-              padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
-              cursor: "pointer",
+      {/* ── En-tête (masqué si embedded — FloatingPanel le fournit) ── */}
+      {!embedded && (
+        <div style={{
+          display: "flex", alignItems: "center",
+          justifyContent: "space-between", flexShrink: 0,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--tx-1)" }}>
+              Humanisation
+            </span>
+            <span style={{
+              padding: "1px 7px", borderRadius: 4, fontSize: 9, fontWeight: 700,
               background: enabled ? "rgba(255,159,10,0.15)" : "var(--bg-3)",
-              color:      enabled ? "var(--c-orange)"       : "var(--tx-3)",
+              color:      enabled ? "var(--c-orange)"       : "var(--tx-4)",
               border:     `1px solid ${enabled ? "rgba(255,159,10,0.30)" : "var(--sep)"}`,
-              transition: "all 0.15s",
-            }}
-          >
-            {enabled ? "Désactiver" : "Activer"}
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              width: 22, height: 22, borderRadius: 5,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              background: "var(--bg-3)", border: "none",
-              cursor: "pointer", fontSize: 14, color: "var(--tx-3)",
-            }}
-          >
-            ×
-          </button>
+            }}>
+              {enabled ? "ACTIF" : "INACTIF"}
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 5 }}>
+            <button
+              type="button"
+              onClick={() => setHumanize({ enabled: !enabled })}
+              style={{
+                padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                cursor: "pointer",
+                background: enabled ? "rgba(255,159,10,0.15)" : "var(--bg-3)",
+                color:      enabled ? "var(--c-orange)"       : "var(--tx-3)",
+                border:     `1px solid ${enabled ? "rgba(255,159,10,0.30)" : "var(--sep)"}`,
+                transition: "all 0.15s",
+              }}
+            >
+              {enabled ? "Désactiver" : "Activer"}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                width: 22, height: 22, borderRadius: 5,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: "var(--bg-3)", border: "none",
+                cursor: "pointer", fontSize: 14, color: "var(--tx-3)",
+              }}
+            >
+              ×
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ── Indicateur de lecture ── */}
       {isPlaying && enabled && (

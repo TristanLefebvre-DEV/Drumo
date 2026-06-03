@@ -35,39 +35,35 @@ export interface PocketProfile {
 
 // Jazz: behind the beat — ride/hihat lag, snare especially behind
 const JAZZ_POCKET: PocketMap = {
-  kick:        -11, snare: -9, snareRim: -8,
+  kick:        -11, kick2: -11, snare: -9, snareRim: -8,
   hihatClosed: -7,  hihatOpen: -7, hihatPedal: -5,
   tomHigh:     -8,  tomMid: -8, tomLow: -7,
   crash:       -3,  ride: -13, splash: -5, otherCymbal: -7,
 };
 
-// Funk: kick on time, snare pushes slightly, hi-hat lags a touch
 const FUNK_POCKET: PocketMap = {
-  kick:          0, snare: +3, snareRim: +2,
+  kick:          0, kick2: 0, snare: +3, snareRim: +2,
   hihatClosed:  -3, hihatOpen: -4, hihatPedal: 0,
   tomHigh:      -1, tomMid: -1, tomLow: 0,
   crash:        -1, ride: -2, splash: -1, otherCymbal: -1,
 };
 
-// Rock: comfortable behind, snare most behind
 const ROCK_POCKET: PocketMap = {
-  kick:         -4, snare: -6, snareRim: -5,
+  kick:         -4, kick2: -4, snare: -6, snareRim: -5,
   hihatClosed:  -3, hihatOpen: -3, hihatPedal: -2,
   tomHigh:      -3, tomMid: -3, tomLow: -2,
   crash:        -1, ride: -3, splash: -2, otherCymbal: -2,
 };
 
-// Metal: tight, hi-hat slightly ahead (double-bass machine precision)
 const METAL_POCKET: PocketMap = {
-  kick:         +1, snare: -1, snareRim: -1,
+  kick:         +1, kick2: +1, snare: -1, snareRim: -1,
   hihatClosed:  +2, hihatOpen: +1, hihatPedal: 0,
   tomHigh:      -1, tomMid: -1, tomLow: -1,
   crash:         0, ride: +1, splash: 0, otherCymbal: 0,
 };
 
-// Neutral: minimal offsets (studio tight)
 const STUDIO_POCKET: PocketMap = {
-  kick:         -2, snare: -3, snareRim: -2,
+  kick:         -2, kick2: -2, snare: -3, snareRim: -2,
   hihatClosed:  -2, hihatOpen: -2, hihatPedal: -1,
   tomHigh:      -2, tomMid: -2, tomLow: -1,
   crash:        -1, ride: -2, splash: -1, otherCymbal: -1,

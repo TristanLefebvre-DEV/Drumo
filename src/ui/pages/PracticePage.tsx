@@ -7,7 +7,6 @@
 
 import { useProjectStore } from "../../store/projectStore";
 import { MetronomePanel }  from "../components/MetronomePanel";
-import { ScoreCanvas }     from "../components/ScoreCanvas";
 import { useState }        from "react";
 
 // ─── Speed presets ────────────────────────────────────────────────────────────
@@ -65,9 +64,8 @@ const Panel = ({ title, children }: { title: string; children: React.ReactNode }
 
 export const PracticePage = () => {
   const {
-    project, rhythm, activeTick, zoomX,
-    transport, updateTransport, heatmap, preview,
-    sections, limbMap,
+    project, activeTick,
+    transport, updateTransport,
   } = useProjectStore();
 
   const [showMetronome, setShowMetronome] = useState(true);
@@ -225,15 +223,16 @@ export const PracticePage = () => {
 
         {/* ── Centre: score ── */}
         <div style={{ display: "flex", flex: 1, flexDirection: "column", minWidth: 0, minHeight: 0, gap: 8, overflow: "hidden" }}>
-          {project && rhythm ? (
-            <ScoreCanvas
-              rhythm={rhythm} ppq={project.ppq} signature={project.timeSignature}
-              activeTick={activeTick} zoomX={zoomX} zoomY={1}
-              heatmap={heatmap} cleanup={{ enabled: false }} previewEnabled={preview.enabled}
-              hits={project.hits} limbMap={limbMap}
-              showLimbAnalysis={false} playabilityMap={{}} showPlayabilityOverlay={false}
-              sections={sections} showSectionTimeline={false}
-            />
+          {project ? (
+            <div style={{
+              flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+              borderRadius: 12, background: "var(--bg-1)", border: "1px solid var(--sep-2)",
+            }}>
+              <p style={{ fontSize: 12, color: "var(--tx-3)", textAlign: "center" }}>
+                {project.hits.length} notes · {project.tempoBpm} BPM<br />
+                <span style={{ fontSize: 10, color: "var(--tx-4)" }}>Lecture via Transport</span>
+              </p>
+            </div>
           ) : (
             <div style={{
               flex: 1,

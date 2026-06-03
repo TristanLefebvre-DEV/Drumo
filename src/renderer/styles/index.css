@@ -4,18 +4,17 @@
 
 :root {
   color-scheme: dark;
-  /* SF Pro on macOS, fallback to system/Inter elsewhere */
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
                "Helvetica Neue", Inter, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 
-  /* ── Backgrounds (Logic Pro inspired) */
-  --bg-app:   #0e0e10;    /* deepest: window chrome */
-  --bg-1:     #161618;    /* sidebar, nav */
-  --bg-2:     #1c1c1e;    /* panels, main surface */
-  --bg-3:     #242426;    /* cards, elevated surfaces */
-  --bg-4:     #2c2c2e;    /* input fields, dropdowns */
+  /* ── Backgrounds */
+  --bg-app:   #0e0e10;
+  --bg-1:     #161618;
+  --bg-2:     #1c1c1e;
+  --bg-3:     #242426;
+  --bg-4:     #2c2c2e;
   --bg-hover: rgba(255,255,255,0.04);
   --bg-sel:   rgba(255,255,255,0.07);
 
@@ -24,18 +23,18 @@
   --sep-2:    rgba(255,255,255,0.11);
   --sep-3:    rgba(255,255,255,0.16);
 
-  /* ── Text hierarchy (Apple SF system) */
-  --tx-1:  #f5f5f7;    /* primary */
-  --tx-2:  #ababae;    /* secondary */
-  --tx-3:  #6e6e73;    /* tertiary / placeholders */
-  --tx-4:  #3a3a3c;    /* disabled */
+  /* ── Text hierarchy */
+  --tx-1:  #f5f5f7;
+  --tx-2:  #ababae;
+  --tx-3:  #6e6e73;
+  --tx-4:  #3a3a3c;
 
-  /* ── Apple blue — used sparingly */
+  /* ── Accent */
   --accent:      #0071e3;
   --accent-dim:  rgba(0,113,227,0.12);
   --accent-line: rgba(0,113,227,0.60);
 
-  /* ── Active / selected state (white-based, not coloured) */
+  /* ── Selected state */
   --sel-bg:     rgba(255,255,255,0.07);
   --sel-border: rgba(255,255,255,0.11);
 
@@ -51,10 +50,18 @@
   --shadow-lg: 0 12px 40px rgba(0,0,0,0.65);
 
   /* ── Radii */
+  --r-xs:  4px;
   --r-sm:  6px;
   --r-md:  10px;
   --r-lg:  14px;
   --r-xl:  18px;
+
+  /* ── Inspector / panel tokens */
+  --inspector-w:      240px;
+  --toolbar-h:        38px;
+  --transport-h:      40px;
+  --topbar-h:         42px;
+  --sidebar-w:        68px;
 }
 
 /* ─── Backward-compat aliases (previous refactor used different names) ───────── */
@@ -163,6 +170,12 @@ button { border: none; cursor: pointer; }
   from { opacity: 0; transform: translateX(8px); }
   to   { opacity: 1; transform: translateX(0); }
 }
+
+@keyframes fp-appear {
+  from { opacity: 0; transform: scale(0.96) translateY(4px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0px); }
+}
+.fp-appear { animation: fp-appear 0.18s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
 @keyframes slide-up {
   from { opacity: 0; transform: translateY(6px); }
@@ -290,3 +303,186 @@ button { border: none; cursor: pointer; }
   100% { transform: translate(-50%,-50%) scale(3.2); opacity: 0; }
 }
 .score-click-ripple { animation: score-click-ripple 0.40s ease-out forwards; }
+
+/* ─── Toolbar & Inspector system ─────────────────────────────────────────────── */
+
+/* Toolbar pill button — shared base */
+.tb-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: var(--r-sm);
+  font-size: 11px;
+  font-weight: 400;
+  background: transparent;
+  color: var(--tx-3);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  white-space: nowrap;
+  user-select: none;
+  line-height: 1;
+  height: 24px;
+}
+.tb-btn:hover {
+  background: var(--bg-hover);
+  color: var(--tx-2);
+}
+.tb-btn.active {
+  font-weight: 600;
+  background: var(--sel-bg);
+  color: var(--tx-1);
+  border-color: var(--sel-border);
+}
+.tb-btn.danger {
+  background: rgba(255,69,58,0.10);
+  color: var(--c-red);
+  border-color: rgba(255,69,58,0.18);
+}
+.tb-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* Inspector tab button */
+.ins-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 4px;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tx-4);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+  border-radius: 0;
+}
+.ins-tab:hover { color: var(--tx-2); background: var(--bg-hover); }
+.ins-tab.active {
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+/* Inspector accordion section */
+.ins-section {
+  border-bottom: 1px solid var(--sep);
+}
+.ins-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s;
+}
+.ins-section-header:hover { background: var(--bg-hover); }
+.ins-section-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--tx-4);
+}
+.ins-section-body {
+  padding: 8px 12px 10px;
+}
+
+/* View switcher segmented control */
+.view-seg {
+  display: flex;
+  background: rgba(255,255,255,0.04);
+  border-radius: 7px;
+  padding: 2px;
+  gap: 1px;
+}
+.view-seg-btn {
+  padding: 3px 10px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 400;
+  background: transparent;
+  color: var(--tx-3);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.12s;
+  white-space: nowrap;
+  user-select: none;
+  height: 24px;
+  display: flex;
+  align-items: center;
+}
+.view-seg-btn.active {
+  font-weight: 600;
+  background: rgba(255,255,255,0.09);
+  color: var(--tx-1);
+  border-color: rgba(255,255,255,0.11);
+}
+
+/* Compact range input */
+.compact-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 3px;
+  background: var(--bg-4);
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+}
+.compact-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--tx-3);
+  cursor: pointer;
+  transition: background 0.12s, transform 0.1s;
+}
+.compact-range::-webkit-slider-thumb:hover {
+  background: var(--tx-2);
+  transform: scale(1.2);
+}
+
+/* Transport SVG icon button */
+.tr-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--tx-3);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  flex-shrink: 0;
+  user-select: none;
+}
+.tr-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--tx-2);
+}
+.tr-btn:disabled { opacity: 0.28; cursor: not-allowed; }
+
+/* Light mode — override scrollbars and compact range */
+[data-theme="light"] .compact-range {
+  background: rgba(0,0,0,0.14);
+}
+[data-theme="light"] .compact-range::-webkit-slider-thumb {
+  background: var(--tx-3);
+}
+[data-theme="light"] .tb-btn.active {
+  background: rgba(0,0,0,0.07);
+  border-color: rgba(0,0,0,0.13);
+}
+[data-theme="light"] .view-seg {
+  background: rgba(0,0,0,0.05);
+}
+[data-theme="light"] .view-seg-btn.active {
+  background: rgba(0,0,0,0.09);
+  border-color: rgba(0,0,0,0.12);
+}

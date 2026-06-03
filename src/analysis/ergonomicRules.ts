@@ -24,18 +24,19 @@ export type Limb = "RH" | "LH" | "RF" | "LF";
 export type InstrumentSide = "far-left" | "left" | "center" | "right" | "far-right";
 
 export const INSTRUMENT_SIDE: Record<DrumPiece, InstrumentSide> = {
-  crash:       "far-left",   // left-side crash (e.g. 16")
-  hihatClosed: "left",       // hi-hat on the left
+  crash:       "far-left",
+  hihatClosed: "left",
   hihatOpen:   "left",
-  hihatPedal:  "left",       // pedal = left foot (positioned left)
+  hihatPedal:  "left",
   snare:       "center",
   snareRim:    "center",
   kick:        "center",
-  tomHigh:     "center",     // rack tom 1 — near centre
-  tomMid:      "right",      // rack tom 2 — right of centre
-  tomLow:      "far-right",  // floor tom — far right
-  ride:        "right",      // ride cymbal — right side
-  splash:      "right",      // splash — typically right
+  kick2:       "center",     // second bass drum pedal
+  tomHigh:     "center",
+  tomMid:      "right",
+  tomLow:      "far-right",
+  ride:        "right",
+  splash:      "right",
   otherCymbal: "right",
 };
 
@@ -51,6 +52,7 @@ export const physicalDistance = (a: DrumPiece, b: DrumPiece): number =>
 
 export const NATURAL_LIMB: Record<DrumPiece, Limb> = {
   kick:        "RF",   // right foot — pedal
+  kick2:       "LF",   // left foot — second bass pedal (double bass)
   hihatPedal:  "LF",   // left foot — pedal
   hihatClosed: "RH",   // right hand crosses over to left side (standard crossover)
   hihatOpen:   "RH",
@@ -82,6 +84,7 @@ export const ALTERNATE_LIMB: Partial<Record<DrumPiece, Limb>> = {
 /** Whether this instrument can realistically be played by either hand. */
 export const CAN_ALTERNATE: Record<DrumPiece, boolean> = {
   kick:        false,
+  kick2:       false,
   hihatPedal:  false,
   ride:        false,   // almost always right hand
   hihatClosed: true,
@@ -98,7 +101,7 @@ export const CAN_ALTERNATE: Record<DrumPiece, boolean> = {
 
 /** True for pedal instruments (feet only). */
 export const IS_FOOT: Record<DrumPiece, boolean> = {
-  kick: true, hihatPedal: true,
+  kick: true, kick2: true, hihatPedal: true,
   hihatClosed: false, hihatOpen: false, snare: false, snareRim: false,
   tomHigh: false, tomMid: false, tomLow: false,
   crash: false, ride: false, splash: false, otherCymbal: false,

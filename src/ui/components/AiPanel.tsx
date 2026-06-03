@@ -72,9 +72,9 @@ const STYLE_LABELS: Record<string, string> = {
 
 // ─── Panneau principal ────────────────────────────────────────────────────────
 
-interface AiPanelProps { onClose: () => void; }
+interface AiPanelProps { onClose: () => void; embedded?: boolean; }
 
-export const AiPanel = ({ onClose }: AiPanelProps) => {
+export const AiPanel = ({ onClose, embedded = false }: AiPanelProps) => {
   const { project, quantizeOptions } = useProjectStore();
   const [result, setResult]   = useState<AiAnalysisResult | null>(null);
   const [status, setStatus]   = useState<AiEngineStatus>("idle");
@@ -111,67 +111,69 @@ export const AiPanel = ({ onClose }: AiPanelProps) => {
 
   return (
     <div style={{
-      width: 276,
-      height: "100%",
+      width: embedded ? "100%" : 276,
+      height: embedded ? undefined : "100%",
       display: "flex",
       flexDirection: "column",
       gap: 8,
-      overflowY: "auto",
-      borderRadius: 12,
-      border: "1px solid var(--sep-2)",
-      background: "var(--bg-2)",
-      padding: 10,
-      boxShadow: "var(--shadow-md)",
+      overflowY: embedded ? undefined : "auto",
+      borderRadius: embedded ? 0 : 12,
+      border: embedded ? "none" : "1px solid var(--sep-2)",
+      background: embedded ? "transparent" : "var(--bg-2)",
+      padding: embedded ? "10px 12px" : 10,
+      boxShadow: embedded ? "none" : "var(--shadow-md)",
     }}>
 
-      {/* ── En-tête ── */}
-      <div style={{
-        display: "flex", alignItems: "center",
-        justifyContent: "space-between", flexShrink: 0,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--tx-1)" }}>
-            Analyse IA
-          </span>
-          <span style={{
-            padding: "1px 6px", borderRadius: 4, fontSize: 9, fontWeight: 700,
-            background: "var(--accent-dim)", color: "var(--accent)",
-            border: "1px solid var(--accent-line)",
-            textTransform: "uppercase" as const, letterSpacing: "0.05em",
-          }}>
-            Hors ligne
-          </span>
+      {/* ── En-tête (masqué si embedded) ── */}
+      {!embedded && (
+        <div style={{
+          display: "flex", alignItems: "center",
+          justifyContent: "space-between", flexShrink: 0,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--tx-1)" }}>
+              Analyse IA
+            </span>
+            <span style={{
+              padding: "1px 6px", borderRadius: 4, fontSize: 9, fontWeight: 700,
+              background: "var(--accent-dim)", color: "var(--accent)",
+              border: "1px solid var(--accent-line)",
+              textTransform: "uppercase" as const, letterSpacing: "0.05em",
+            }}>
+              Hors ligne
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 4 }}>
+            <button
+              type="button"
+              onClick={() => setDebugMode((v) => !v)}
+              title="Mode débogage"
+              style={{
+                padding: "2px 6px", borderRadius: 4, fontSize: 9,
+                background: debugMode ? "var(--bg-4)" : "transparent",
+                color: debugMode ? "var(--tx-2)" : "var(--tx-4)",
+                border: "1px solid transparent", cursor: "pointer",
+                transition: "all 0.12s",
+              }}
+            >
+              DBG
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                width: 22, height: 22, borderRadius: 5,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: "var(--bg-3)", border: "none",
+                cursor: "pointer", fontSize: 14, color: "var(--tx-3)",
+                transition: "all 0.12s",
+              }}
+            >
+              ×
+            </button>
+          </div>
         </div>
-        <div style={{ display: "flex", gap: 4 }}>
-          <button
-            type="button"
-            onClick={() => setDebugMode((v) => !v)}
-            title="Mode débogage"
-            style={{
-              padding: "2px 6px", borderRadius: 4, fontSize: 9,
-              background: debugMode ? "var(--bg-4)" : "transparent",
-              color: debugMode ? "var(--tx-2)" : "var(--tx-4)",
-              border: "1px solid transparent", cursor: "pointer",
-              transition: "all 0.12s",
-            }}
-          >
-            DBG
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              width: 22, height: 22, borderRadius: 5,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              background: "var(--bg-3)", border: "none",
-              cursor: "pointer", fontSize: 14, color: "var(--tx-3)",
-              transition: "all 0.12s",
-            }}
-          >
-            ×
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* ── Bouton analyser ── */}
       <button

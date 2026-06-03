@@ -20,10 +20,7 @@ import { analyzeKitBalance } from "../../analysis/kitBalanceAnalyzer";
 import { STYLE_PROFILES, ALL_STYLES } from "../../analysis/styleProfiles";
 import { computeStyleSimilarities } from "../../ai/grooveEmbedding";
 import { extractGrooveDNA } from "../../ai/grooveDNA";
-import { groupCymbals } from "../../notation/cymbalGroupingEngine";
-import { optimizeForPrint } from "../../export/printOptimizer";
 import type { DrumStyle } from "../../analysis/styleProfiles";
-import type { LayoutPreset } from "../../export/pageLayoutEngine";
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
 
@@ -90,13 +87,13 @@ const SimilarityChip = ({ style, score, active }: { style: string; score: number
 
 interface KitBalancePanelProps {
   onClose: () => void;
+  embedded?: boolean;
 }
 
-export const KitBalancePanel = ({ onClose }: KitBalancePanelProps) => {
+export const KitBalancePanel = ({ onClose, embedded = false }: KitBalancePanelProps) => {
   const { project } = useProjectStore();
   const [targetStyle, setTargetStyle] = useState<DrumStyle>("rock");
-  const [layoutPreset, setLayoutPreset] = useState<LayoutPreset>("reading");
-  const [activeTab, setActiveTab] = useState<"balance" | "dna" | "cymbals" | "layout">("balance");
+  const [activeTab, setActiveTab] = useState<"balance" | "dna">("balance");
 
   const analysis = useMemo(
     () => project ? analyzeKitBalance(project, targetStyle) : null,
@@ -109,21 +106,11 @@ export const KitBalancePanel = ({ onClose }: KitBalancePanelProps) => {
     return computeStyleSimilarities(dna);
   }, [project]);
 
-  const cymbalResult = useMemo(
-    () => project ? groupCymbals(project) : null,
-    [project]
-  );
-
-  const printResult = useMemo(
-    () => project ? optimizeForPrint(project, layoutPreset) : null,
-    [project, layoutPreset]
-  );
-
   if (!project) {
     return (
-      <div className="flex h-full w-72 flex-col items-center justify-center rounded-xl border border-zinc-800 bg-zinc-950/95 p-6 text-center">
+      <div className={`flex flex-col items-center justify-center p-6 text-center ${embedded ? "h-full w-full" : "h-full w-72 rounded-xl border border-zinc-800 bg-zinc-950/95"}`}>
         <p className="text-xs text-zinc-600">Charge un projet pour accéder à l'analyse Kit Balance.</p>
-        <button type="button" onClick={onClose} className="mt-4 text-xs text-zinc-500 hover:text-zinc-300 transition">Fermer</button>
+        {!embedded && <button type="button" onClick={onClose} className="mt-4 text-xs text-zinc-500 hover:text-zinc-300 transition">Fermer</button>}
       </div>
     );
   }
@@ -131,17 +118,17 @@ export const KitBalancePanel = ({ onClose }: KitBalancePanelProps) => {
   const tabs: { key: typeof activeTab; label: string }[] = [
     { key: "balance", label: "Balance" },
     { key: "dna",     label: "Groove DNA" },
-    { key: "cymbals", label: "Cymbales" },
-    { key: "layout",  label: "Mise en page" },
   ];
 
   return (
-    <div className="flex h-full w-80 flex-col gap-0 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950/98 shadow-[0_8px_32px_rgba(0,0,0,0.6)] text-sm">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-zinc-800 px-3 py-2.5">
-        <span className="font-semibold text-zinc-100">Kit Balance</span>
-        <button type="button" onClick={onClose} className="text-xs text-zinc-500 hover:text-zinc-200 transition px-1.5">×</button>
-      </div>
+    <div className={`flex flex-col gap-0 overflow-hidden text-sm ${embedded ? "h-full w-full" : "h-full w-80 rounded-xl border border-zinc-800 bg-zinc-950/98 shadow-[0_8px_32px_rgba(0,0,0,0.6)]"}`}>
+      {/* Header (masqué si embedded) */}
+      {!embedded && (
+        <div className="flex items-center justify-between border-b border-zinc-800 px-3 py-2.5 shrink-0">
+          <span className="font-semibold text-zinc-100">Kit Balance</span>
+          <button type="button" onClick={onClose} className="text-xs text-zinc-500 hover:text-zinc-200 transition px-1.5">×</button>
+        </div>
+      )}
 
       {/* Tab bar */}
       <div className="flex border-b border-zinc-800 bg-zinc-900/60">
@@ -272,123 +259,6 @@ export const KitBalancePanel = ({ onClose }: KitBalancePanelProps) => {
           </>
         )}
 
-        {/* ── CYMBALS TAB ───────────────────────────────────────────────────── */}
-        {activeTab === "cymbals" && cymbalResult && (
-          <>
-            <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 space-y-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
-                Voix groove principale : <span className="text-blue-300">{cymbalResult.primaryVoice === "ride" ? "Ride" : "Hi-hat"}</span>
-              </p>
-              {cymbalResult.groups.map((g, i) => (
-                <div key={i} className="flex items-center justify-between rounded border border-zinc-700 bg-zinc-800/60 px-2 py-1">
-                  <span className="text-[10px] capitalize" style={{ color: { groove:"#3b82f6", accent:"#ef4444", transition:"#8b5cf6", expression:"#22c55e" }[g.type] }}>
-                    {g.type}
-                  </span>
-                  <span className="font-mono text-[9px] text-zinc-500">{g.hitIds.length} hits</span>
-                  {g.addOpenMark && <span className="text-[9px] text-green-400/70">+o</span>}
-                </div>
-              ))}
-            </div>
-            {cymbalResult.suggestions.length > 0 && (
-              <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 space-y-1">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600">Notes de notation</p>
-                {cymbalResult.suggestions.map((s, i) => (
-                  <p key={i} className="text-[10px] text-zinc-400 flex gap-1.5">
-                    <span className="text-zinc-600">•</span>{s}
-                  </p>
-                ))}
-              </div>
-            )}
-          </>
-        )}
-
-        {/* ── LAYOUT TAB ────────────────────────────────────────────────────── */}
-        {activeTab === "layout" && printResult && (
-          <>
-            {/* Preset selector */}
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-zinc-500 shrink-0">Mode :</span>
-              {(["compact","reading","publication"] as LayoutPreset[]).map(p => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setLayoutPreset(p)}
-                  className={`rounded-md border px-2 py-0.5 text-[9px] font-semibold transition capitalize ${
-                    layoutPreset === p
-                      ? "border-blue-500/50 bg-blue-600/20 text-blue-300"
-                      : "border-zinc-700 bg-zinc-800/60 text-zinc-400 hover:text-zinc-200"
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-
-            {/* Score + summary */}
-            <div className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2">
-              <div className={`flex h-10 w-10 items-center justify-center rounded-lg font-black text-lg ${
-                printResult.qualityScore >= 80 ? "bg-green-500/20 text-green-400" :
-                printResult.qualityScore >= 60 ? "bg-yellow-500/20 text-yellow-400" : "bg-red-500/20 text-red-400"
-              }`}>
-                {printResult.qualityScore}
-              </div>
-              <div>
-                <p className="text-[10px] text-zinc-500">Score mise en page</p>
-                <p className="text-[10px] text-zinc-300">{printResult.summary}</p>
-              </div>
-            </div>
-
-            {/* Page preview */}
-            <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3">
-              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
-                Aperçu ({printResult.layout.pages.length} page{printResult.layout.pages.length > 1 ? "s" : ""})
-              </p>
-              <div className="space-y-1">
-                {printResult.layout.pages.map((page, pi) => (
-                  <div key={pi} className="rounded border border-zinc-700 bg-zinc-800/40 px-2 py-1">
-                    <p className="text-[9px] text-zinc-500 mb-0.5">Page {pi + 1}</p>
-                    <div className="flex gap-0.5 flex-wrap">
-                      {page.lines.map((line, li) => (
-                        <div
-                          key={li}
-                          className={`flex items-center justify-center rounded text-[8px] font-mono px-1.5 py-0.5 ${
-                            line.containsFill ? "bg-orange-500/30 text-orange-300" : "bg-zinc-700/60 text-zinc-400"
-                          }`}
-                          title={`Mesures ${line.startMeasure + 1}–${line.endMeasure + 1}`}
-                        >
-                          {line.measureCount}m
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-1.5 text-[9px] text-zinc-600">Orange = ligne contenant un fill</p>
-            </div>
-
-            {/* Issues + suggestions */}
-            {printResult.issues.length > 0 && (
-              <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 space-y-1">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600">Problèmes</p>
-                {printResult.issues.map((iss, i) => (
-                  <p key={i} className={`text-[10px] flex gap-1.5 ${iss.severity === "warning" ? "text-amber-400" : "text-zinc-500"}`}>
-                    <span>{iss.severity === "warning" ? "!" : "i"}</span>{iss.message}
-                  </p>
-                ))}
-              </div>
-            )}
-            {printResult.suggestions.length > 0 && (
-              <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-3 space-y-1">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600">Suggestions</p>
-                {printResult.suggestions.map((s, i) => (
-                  <p key={i} className="text-[10px] text-zinc-400 flex gap-1.5">
-                    <span className="text-zinc-600">•</span>{s}
-                  </p>
-                ))}
-              </div>
-            )}
-          </>
-        )}
       </div>
     </div>
   );

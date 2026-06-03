@@ -75,6 +75,10 @@ const PIECE_KEYWORDS: Record<DrumPiece, string[][]> = {
     ["808", "606"],
     ["sub", "boomkick", "low_end"],
   ],
+  kick2: [
+    ["kick2", "bd2", "bass_drum2", "bassdrum2", "double_bass"],
+    ["left_kick", "lkick", "kick_l"],
+  ],
   snare: [
     ["snare", "snr", "sd", "sn"],
     ["clap", "clp", "rimclap"],

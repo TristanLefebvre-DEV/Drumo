@@ -21,6 +21,7 @@ export const DRUM_ROWS: DrumRow[] = [
   { piece: "snareRim",    label: "Rim",      midi: 40, color: "#fbbf24" },
   { piece: "snare",       label: "Snare",    midi: 38, color: "#fb923c" },
   { piece: "kick",        label: "Kick",     midi: 36, color: "#f87171" },
+  { piece: "kick2",       label: "Kick 2",   midi: 35, color: "#fca5a5" },
 ];
 
 export const PIECE_TO_ROW = new Map<DrumPiece, DrumRow>(DRUM_ROWS.map(r => [r.piece, r]));

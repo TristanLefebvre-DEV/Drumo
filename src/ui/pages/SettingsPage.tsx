@@ -9,13 +9,14 @@
 import { useState } from "react";
 import {
   useSettingsStore,
-  type AccentColor,
   type VisualDensity,
   type FontSize,
   type Appearance,
   type GradientStyle,
 } from "../../store/settingsStore";
 import { buildPreviewGradient } from "../utils/gradientEngine";
+import { ChromaticColorPicker } from "../components/ChromaticColorPicker";
+import { ShortcutsSection } from "../components/ShortcutsSection";
 
 // ─── Primitive UI components ──────────────────────────────────────────────────
 
@@ -798,23 +799,13 @@ const LearnSection = () => {
   );
 };
 
-// ─── Accent color chips ───────────────────────────────────────────────────────
-
-const ACCENTS: { id: AccentColor; label: string; hex: string }[] = [
-  { id: "blue",   label: "Studio",    hex: "#0071e3" },
-  { id: "black",  label: "Minimal",   hex: "#636366" },
-  { id: "red",    label: "Energy",    hex: "#ff453a" },
-  { id: "green",  label: "Precision", hex: "#30d158" },
-  { id: "purple", label: "Creative",  hex: "#bf5af2" },
-  { id: "orange", label: "Learn",     hex: "#ff9f0a" },
-];
-
 const ThemeSection = () => {
   const { theme, setTheme } = useSettingsStore();
 
   const previewGrad = buildPreviewGradient(
-    theme.accent,
-    theme.gradientStyle ?? "mesh",
+    theme.gradientColor1 ?? "#0071e3",
+    theme.gradientColor2 ?? "#bf5af2",
+    theme.gradientStyle  ?? "mesh",
     theme.appearance,
     theme.gradientAngle  ?? 135,
     theme.gradientInvert ?? false,
@@ -955,53 +946,23 @@ const ThemeSection = () => {
         </div>
       </SettingGroup>
 
-      <SettingGroup title="Accent color">
+      <SettingGroup title="Couleurs du dégradé">
         <div style={{ padding: "10px 0" }}>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            {ACCENTS.map((a) => {
-              const active = theme.accent === a.id;
-              return (
-                <button
-                  key={a.id}
-                  type="button"
-                  title={a.label}
-                  onClick={() => setTheme({ accent: a.id })}
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    gap: 6,
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    padding: 0,
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 9,
-                      background: a.hex,
-                      outline: active ? `3px solid ${a.hex}` : "3px solid transparent",
-                      outlineOffset: 2,
-                      transform: active ? "scale(1.1)" : "scale(1)",
-                      transition: "transform 0.15s, outline 0.15s",
-                      boxShadow: active ? `0 0 0 1.5px var(--bg-app), 0 2px 8px ${a.hex}66` : "none",
-                    }}
-                  />
-                  <span
-                    style={{
-                      fontSize: 10,
-                      color: active ? "var(--tx-1)" : "var(--tx-3)",
-                      fontWeight: active ? 600 : 400,
-                    }}
-                  >
-                    {a.label}
-                  </span>
-                </button>
-              );
-            })}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--tx-2)" }}>Couleur 1</span>
+              <ChromaticColorPicker
+                value={theme.gradientColor1 ?? "#0071e3"}
+                onChange={(hex) => setTheme({ gradientColor1: hex })}
+              />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: "var(--tx-2)" }}>Couleur 2</span>
+              <ChromaticColorPicker
+                value={theme.gradientColor2 ?? "#bf5af2"}
+                onChange={(hex) => setTheme({ gradientColor2: hex })}
+              />
+            </div>
           </div>
         </div>
       </SettingGroup>
@@ -1032,15 +993,21 @@ const ThemeSection = () => {
           {/* ── Gradient style buttons with mini swatch previews ── */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
             {([
-              { value: "flat",   label: "Uni",     desc: "Fond plat" },
-              { value: "subtle", label: "Subtil",  desc: "Gradient doux" },
+              { value: "flat",   label: "Uni",     desc: "Fond plat"      },
+              { value: "subtle", label: "Subtil",  desc: "Gradient doux"  },
               { value: "radial", label: "Radial",  desc: "Halos lumineux" },
-              { value: "mesh",   label: "Mesh",    desc: "Multi-sources" },
-              { value: "aurora", label: "Aurora",  desc: "Animé" },
+              { value: "mesh",   label: "Mesh",    desc: "Multi-sources"  },
+              { value: "aurora", label: "Aurora",  desc: "Animé"          },
+              { value: "neon",   label: "Neon",    desc: "Lueurs vives"   },
+              { value: "prism",  label: "Prisme",  desc: "Bandes spectr." },
+              { value: "wave",   label: "Vague",   desc: "Flux croisés"   },
             ] as { value: GradientStyle; label: string; desc: string }[]).map((g) => {
               const active = (theme.gradientStyle ?? "mesh") === g.value;
               const swatch = buildPreviewGradient(
-                theme.accent, g.value, theme.appearance,
+                theme.gradientColor1 ?? "#0071e3",
+                theme.gradientColor2 ?? "#bf5af2",
+                g.value,
+                theme.appearance,
                 theme.gradientAngle  ?? 135,
                 theme.gradientInvert ?? false,
               );
@@ -1183,7 +1150,7 @@ const ThemeSection = () => {
 
 // ─── Section registry ─────────────────────────────────────────────────────────
 
-type SectionId = "theme" | "ai" | "midi" | "audio" | "notation" | "physics" | "performance" | "learn";
+type SectionId = "theme" | "ai" | "midi" | "audio" | "notation" | "physics" | "performance" | "learn" | "shortcuts";
 
 const SECTIONS: {
   id: SectionId;
@@ -1299,6 +1266,19 @@ const SECTIONS: {
       </svg>
     ),
     Component: LearnSection,
+  },
+  {
+    id: "shortcuts",
+    label: "Shortcuts",
+    group: "system",
+    Icon: () => (
+      <svg width="14" height="14" viewBox="0 0 20 20" fill="none">
+        <rect x="2" y="5" width="7" height="5" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
+        <rect x="11" y="5" width="7" height="5" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
+        <rect x="6" y="12" width="8" height="4" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
+      </svg>
+    ),
+    Component: ShortcutsSection,
   },
 ];
 

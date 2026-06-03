@@ -16,6 +16,7 @@ export const DEFAULT_TRANSPORT: TransportOptions = {
 
 export const DRUM_PIECE_LABELS: Record<DrumPiece, string> = {
   kick:        "Kick",
+  kick2:       "Kick 2",
   snare:       "Snare",
   snareRim:    "Rim",
   hihatClosed: "HH",
@@ -32,7 +33,7 @@ export const DRUM_PIECE_LABELS: Record<DrumPiece, string> = {
 
 /** All drum pieces in display order for mixer strip. */
 export const DRUM_PIECES_ORDERED: DrumPiece[] = [
-  "kick", "snare", "snareRim",
+  "kick", "kick2", "snare", "snareRim",
   "hihatClosed", "hihatOpen", "hihatPedal",
   "tomHigh", "tomMid", "tomLow",
   "crash", "ride", "splash", "otherCymbal",

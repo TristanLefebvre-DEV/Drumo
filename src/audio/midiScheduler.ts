@@ -81,8 +81,17 @@ export class MidiScheduler {
       if (hit.tick < fromTick) continue;
       if (hit.tick >= toTick) break;
 
+      // Per-piece mute / solo
       const muted = hasSolo ? !soloState[hit.piece] : !!muteState[hit.piece];
       if (muted) continue;
+
+      // Per-note mute
+      if (hit.muted) continue;
+
+      // Probability: skip randomly (each pass is independent)
+      if (hit.probability !== undefined && hit.probability < 100) {
+        if (Math.random() * 100 > hit.probability) continue;
+      }
 
       // Humanize timing: deterministic tick offset from the humanize engine
       const tickOffset = this.humanizeTimingProcessor ? this.humanizeTimingProcessor(hit) : 0;
@@ -99,6 +108,26 @@ export class MidiScheduler {
       // Humanize velocity: applied after the kit curve processor
       if (this.humanizeVelocityProcessor) {
         velocity = this.humanizeVelocityProcessor(hit, velocity);
+      }
+
+      const noteType = hit.noteType ?? "normal";
+
+      if (noteType === "roll") {
+        // Schedule rapid hits every 1/32 note for the note's duration
+        const rollInterval = 60 / (project.tempoBpm * speed) / 8;
+        const endTime = startAudioTime + ((hit.tick + hit.durationTicks) - startTick) / ticksPerSec;
+        let t = eventTime;
+        while (t < endTime) {
+          this.voices.get(hit.piece)?.trigger(velocity, t);
+          t += rollInterval;
+        }
+        continue;
+      }
+
+      if (noteType === "flam") {
+        // Grace note: soft hit ~30 ms before the main strike
+        const graceTime = eventTime - 0.030;
+        this.voices.get(hit.piece)?.trigger(velocity * 0.35, graceTime);
       }
 
       this.voices.get(hit.piece)?.trigger(velocity, eventTime);

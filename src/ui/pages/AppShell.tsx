@@ -1,9 +1,9 @@
 /**
- * App Shell — v2
+ * App Shell — v4
  *
- * Root layout: 72 px left sidebar (icon + label) + full-height content.
- * Settings is a full section (no modal). Transport bar is lifted to app level.
- * Global file ops, drag-and-drop, and keyboard shortcuts live here.
+ * Layout: sidebar large (200px) + contenu principal.
+ * Sidebar : nav horizontale + sous-sections Bibliothèque + Récents.
+ * Style : macOS application professionnelle (Final Cut Pro / GarageBand).
  */
 
 import { useEffect, useState } from "react";
@@ -14,98 +14,133 @@ import { LearnPage }    from "./LearnPage";
 import { LibraryPage }  from "./LibraryPage";
 import { SettingsPage } from "./SettingsPage";
 import { TransportBar } from "../components/TransportBar";
+import { AppMenuBar }   from "../components/AppMenuBar";
 import { useProjectStore } from "../../store/projectStore";
-// Importing settingsStore triggers initial DOM theme application
 import "../../store/settingsStore";
-// Wires audio/performance settings to Tone.js + metronome engine
 import "../../store/audioSettingsWatcher";
 import type { ParsedDrumProject, QuantizeOptions } from "../../core/types";
 
-// ─── Section types ────────────────────────────────────────────────────────────
-
 export type AppSection = "compose" | "analyze" | "practice" | "learn" | "library" | "settings";
 
-// ─── Icons (SF Symbols-inspired, 20 × 20 viewport) ───────────────────────────
+// ─── Icônes navigation ────────────────────────────────────────────────────────
 
 const IconCompose = () => (
-  <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+  <svg width="15" height="15" viewBox="0 0 20 20" fill="none">
     <path d="M6 18V8L14 5V15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    <circle cx="5.5" cy="18" r="2" stroke="currentColor" strokeWidth="1.5"/>
-    <circle cx="13.5" cy="15" r="2" stroke="currentColor" strokeWidth="1.5"/>
+    <circle cx="5.5" cy="18" r="1.9" stroke="currentColor" strokeWidth="1.4"/>
+    <circle cx="13.5" cy="15" r="1.9" stroke="currentColor" strokeWidth="1.4"/>
   </svg>
 );
-
 const IconAnalyze = () => (
-  <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-    <rect x="2.5" y="12" width="3" height="6" rx="0.75" fill="currentColor" opacity="0.7"/>
-    <rect x="8.5" y="8"  width="3" height="10" rx="0.75" fill="currentColor" opacity="0.85"/>
+  <svg width="15" height="15" viewBox="0 0 20 20" fill="none">
+    <rect x="2.5" y="12" width="3" height="6" rx="0.75" fill="currentColor" opacity="0.6"/>
+    <rect x="8.5" y="8"  width="3" height="10" rx="0.75" fill="currentColor" opacity="0.8"/>
     <rect x="14.5" y="4" width="3" height="14" rx="0.75" fill="currentColor"/>
   </svg>
 );
-
 const IconPractice = () => (
-  <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-    <circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.5"/>
-    <path d="M10 10V4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    <path d="M10 10L14 10"  stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+  <svg width="15" height="15" viewBox="0 0 20 20" fill="none">
+    <circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.4"/>
+    <path d="M10 10V4.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+    <path d="M10 10L14 10" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
     <circle cx="10" cy="10" r="1.2" fill="currentColor"/>
   </svg>
 );
-
 const IconLearn = () => (
-  <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-    <rect x="3" y="2.5" width="14" height="15" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
-    <line x1="7" y1="2.5" x2="7" y2="17.5" stroke="currentColor" strokeWidth="1" opacity="0.5"/>
-    <line x1="9" y1="7"   x2="14" y2="7"    stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-    <line x1="9" y1="10"  x2="14" y2="10"   stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-    <line x1="9" y1="13"  x2="12" y2="13"   stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+  <svg width="15" height="15" viewBox="0 0 20 20" fill="none">
+    <rect x="3" y="2.5" width="14" height="15" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
+    <line x1="7" y1="2.5" x2="7" y2="17.5" stroke="currentColor" strokeWidth="1" opacity="0.4"/>
+    <line x1="9" y1="7"  x2="14" y2="7"  stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+    <line x1="9" y1="10" x2="14" y2="10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+    <line x1="9" y1="13" x2="12" y2="13" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
   </svg>
 );
-
 const IconLibrary = () => (
-  <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-    <rect x="2.5"  y="2.5"  width="6.5" height="6.5" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
-    <rect x="11"   y="2.5"  width="6.5" height="6.5" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
-    <rect x="2.5"  y="11"   width="6.5" height="6.5" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
-    <rect x="11"   y="11"   width="6.5" height="6.5" rx="1.5" stroke="currentColor" strokeWidth="1.5"/>
+  <svg width="15" height="15" viewBox="0 0 20 20" fill="none">
+    <rect x="2.5" y="2.5"  width="6.5" height="6.5" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
+    <rect x="11"  y="2.5"  width="6.5" height="6.5" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
+    <rect x="2.5" y="11"   width="6.5" height="6.5" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
+    <rect x="11"  y="11"   width="6.5" height="6.5" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
+  </svg>
+);
+const IconSettings = () => (
+  <svg width="15" height="15" viewBox="0 0 20 20" fill="none">
+    <line x1="3" y1="6"  x2="17" y2="6"  stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+    <circle cx="7"  cy="6"  r="2.1" fill="var(--bg-1)" stroke="currentColor" strokeWidth="1.4"/>
+    <line x1="3" y1="11" x2="17" y2="11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+    <circle cx="13" cy="11" r="2.1" fill="var(--bg-1)" stroke="currentColor" strokeWidth="1.4"/>
+    <line x1="3" y1="16" x2="17" y2="16" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+    <circle cx="9"  cy="16" r="2.1" fill="var(--bg-1)" stroke="currentColor" strokeWidth="1.4"/>
   </svg>
 );
 
-const IconSettings = () => (
-  <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-    <line x1="3" y1="6"  x2="17" y2="6"  stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    <circle cx="7"  cy="6"  r="2.2" fill="var(--bg-1)" stroke="currentColor" strokeWidth="1.5"/>
-    <line x1="3" y1="11" x2="17" y2="11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    <circle cx="13" cy="11" r="2.2" fill="var(--bg-1)" stroke="currentColor" strokeWidth="1.5"/>
-    <line x1="3" y1="16" x2="17" y2="16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-    <circle cx="9"  cy="16" r="2.2" fill="var(--bg-1)" stroke="currentColor" strokeWidth="1.5"/>
+// ─── Icônes bibliothèque ─────────────────────────────────────────────────────
+
+const IconGrooves = () => (
+  <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.3"/>
+    <circle cx="8" cy="8" r="3" stroke="currentColor" strokeWidth="1.1"/>
+    <circle cx="8" cy="8" r="1" fill="currentColor"/>
   </svg>
 );
+const IconFills = () => (
+  <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+    <path d="M2 12L5 6l3 4 3-6 3 6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+  </svg>
+);
+const IconExercices = () => (
+  <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+    <path d="M3 8h10M8 3v10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+    <circle cx="8" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.1"/>
+  </svg>
+);
+const IconMorceaux = () => (
+  <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+    <rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.3"/>
+    <path d="M5 6h6M5 9h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+  </svg>
+);
+const IconKits = () => (
+  <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+    <ellipse cx="8" cy="12" rx="5" ry="2" stroke="currentColor" strokeWidth="1.2"/>
+    <path d="M3 12V8M13 12V8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+    <ellipse cx="8" cy="8" rx="5" ry="2" stroke="currentColor" strokeWidth="1.2"/>
+  </svg>
+);
+
 
 // ─── Logo ─────────────────────────────────────────────────────────────────────
 
 const AppLogo = () => (
-  <svg width="22" height="19" viewBox="0 0 36 30" fill="none" opacity="0.75">
-    <circle cx="18" cy="19" r="9"   stroke="var(--tx-2)" strokeWidth="2"   fill="none"/>
-    <circle cx="18" cy="19" r="5"   stroke="var(--tx-2)" strokeWidth="1.2" fill="none"/>
-    <ellipse cx="9" cy="13" rx="4.5" ry="2.2" stroke="var(--tx-2)" strokeWidth="1.8" fill="none"/>
-    <ellipse cx="27" cy="3.5" rx="4" ry="1.3" stroke="var(--tx-2)" strokeWidth="1.5" fill="none"/>
-    <line x1="18" y1="10" x2="27" y2="4"  stroke="var(--tx-2)" strokeWidth="1.8" strokeLinecap="round"/>
-    <line x1="18" y1="10" x2="9"  y2="4"  stroke="var(--tx-2)" strokeWidth="1.8" strokeLinecap="round"/>
+  <svg width="22" height="18" viewBox="0 0 36 30" fill="none">
+    <circle cx="18" cy="19" r="9"    stroke="var(--accent)" strokeWidth="2"   fill="none" opacity="0.85"/>
+    <circle cx="18" cy="19" r="5"    stroke="var(--accent)" strokeWidth="1.2" fill="none" opacity="0.65"/>
+    <ellipse cx="9"  cy="13" rx="4.5" ry="2.2" stroke="var(--tx-3)" strokeWidth="1.8" fill="none"/>
+    <ellipse cx="27" cy="3.5" rx="4"  ry="1.3" stroke="var(--tx-3)" strokeWidth="1.5" fill="none"/>
+    <line x1="18" y1="10" x2="27" y2="4" stroke="var(--tx-3)" strokeWidth="1.8" strokeLinecap="round"/>
+    <line x1="18" y1="10" x2="9"  y2="4" stroke="var(--tx-3)" strokeWidth="1.8" strokeLinecap="round"/>
   </svg>
 );
 
-// ─── Section config ───────────────────────────────────────────────────────────
+// ─── Sections config ──────────────────────────────────────────────────────────
 
 const MAIN_SECTIONS: { id: AppSection; label: string; Icon: React.FC }[] = [
-  { id: "compose",  label: "Compose",     Icon: IconCompose  },
-  { id: "practice", label: "Pratique",   Icon: IconPractice },
-  { id: "learn",    label: "Apprendre",  Icon: IconLearn    },
-  { id: "analyze",  label: "Analyser",   Icon: IconAnalyze  },
+  { id: "compose",  label: "Composer",     Icon: IconCompose  },
+  { id: "practice", label: "Pratiquer",    Icon: IconPractice },
+  { id: "learn",    label: "Apprendre",    Icon: IconLearn    },
+  { id: "analyze",  label: "Analyser",     Icon: IconAnalyze  },
   { id: "library",  label: "Bibliothèque", Icon: IconLibrary  },
 ];
 
-// ─── Nav item ─────────────────────────────────────────────────────────────────
+const LIBRARY_ITEMS: { label: string; Icon: React.FC }[] = [
+  { label: "Grooves",   Icon: IconGrooves   },
+  { label: "Fills",     Icon: IconFills     },
+  { label: "Exercices", Icon: IconExercices },
+  { label: "Morceaux",  Icon: IconMorceaux  },
+  { label: "Kits",      Icon: IconKits      },
+];
+
+// ─── Nav item (horizontal) ────────────────────────────────────────────────────
 
 const NavItem = ({
   label, active, onClick, Icon,
@@ -114,53 +149,41 @@ const NavItem = ({
 }) => (
   <button
     type="button"
-    title={label}
     onClick={onClick}
+    title={label}
     style={{
-      width: "100%",
-      height: 60,
+      width: "calc(100% - 8px)",
+      height: 34,
       display: "flex",
-      flexDirection: "column",
       alignItems: "center",
-      justifyContent: "center",
-      gap: 4,
+      gap: 9,
+      padding: "0 10px 0 14px",
       position: "relative",
-      background: active ? "var(--bg-sel)" : "transparent",
+      background: active ? "var(--accent-dim)" : "transparent",
       border: "none",
       cursor: "pointer",
-      transition: "background 0.15s ease, color 0.15s ease",
-      color: active ? "var(--tx-1)" : "var(--tx-4)",
+      transition: "background 0.13s ease",
+      color: active ? "var(--accent)" : "var(--tx-3)",
+      borderRadius: "0 8px 8px 0",
     }}
     onMouseEnter={(e) => {
-      if (!active) {
-        const el = e.currentTarget as HTMLElement;
-        el.style.background = "var(--bg-hover)";
-        el.style.color = "var(--tx-3)";
-      }
+      if (!active) (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
     }}
     onMouseLeave={(e) => {
-      const el = e.currentTarget as HTMLElement;
-      el.style.background = active ? "var(--bg-sel)" : "transparent";
-      el.style.color = active ? "var(--tx-1)" : "var(--tx-4)";
+      (e.currentTarget as HTMLElement).style.background = active ? "var(--accent-dim)" : "transparent";
     }}
   >
-    {/* Active indicator — left edge */}
     {active && (
       <div style={{
-        position: "absolute",
-        left: 0,
-        top: "25%",
-        bottom: "25%",
-        width: 2,
-        borderRadius: "0 2px 2px 0",
-        background: "var(--accent)",
+        position: "absolute", left: 0, top: "20%", bottom: "20%",
+        width: 2.5, borderRadius: "0 2px 2px 0", background: "var(--accent)",
       }} />
     )}
     <Icon />
     <span style={{
-      fontSize: 9,
+      fontSize: 12,
       fontWeight: active ? 600 : 400,
-      letterSpacing: "0.02em",
+      letterSpacing: "0.01em",
       userSelect: "none",
     }}>
       {label}
@@ -168,69 +191,122 @@ const NavItem = ({
   </button>
 );
 
-// ─── Save status dot ──────────────────────────────────────────────────────────
+// ─── Library sub-item ─────────────────────────────────────────────────────────
 
-const SaveDot = ({ hasProject }: { hasProject: boolean }) => (
-  <div style={{
-    width: 6,
-    height: 6,
-    borderRadius: "50%",
-    flexShrink: 0,
-    background: hasProject ? "var(--c-green)" : "var(--tx-4)",
-    boxShadow: hasProject ? "0 0 0 2px rgba(48,209,88,0.18)" : "none",
-    transition: "all 0.3s ease",
-  }} />
-);
-
-// ─── Top bar file button ──────────────────────────────────────────────────────
-
-const FileBtn = ({
-  label, onClick, primary = false,
-}: {
-  label: string; onClick: () => void; primary?: boolean;
-}) => (
+const LibItem = ({
+  label, Icon, onClick,
+}: { label: string; Icon: React.FC; onClick: () => void }) => (
   <button
     type="button"
     onClick={onClick}
     style={{
-      padding: "4px 11px",
-      borderRadius: 6,
-      fontSize: 11,
-      fontWeight: primary ? 600 : 400,
-      background: primary ? "rgba(255,255,255,0.09)" : "transparent",
-      color: primary ? "var(--tx-1)" : "var(--tx-3)",
-      border: `1px solid ${primary ? "rgba(255,255,255,0.13)" : "transparent"}`,
+      width: "calc(100% - 8px)",
+      height: 28,
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+      padding: "0 10px 0 28px",
+      background: "transparent",
+      border: "none",
       cursor: "pointer",
-      transition: "background 0.12s, color 0.12s",
-      whiteSpace: "nowrap" as const,
+      color: "var(--tx-3)",
+      borderRadius: "0 6px 6px 0",
+      transition: "background 0.1s, color 0.1s",
     }}
     onMouseEnter={(e) => {
       const el = e.currentTarget as HTMLElement;
-      el.style.background = primary ? "rgba(255,255,255,0.13)" : "rgba(255,255,255,0.05)";
+      el.style.background = "var(--bg-hover)";
       el.style.color = "var(--tx-2)";
     }}
     onMouseLeave={(e) => {
       const el = e.currentTarget as HTMLElement;
-      el.style.background = primary ? "rgba(255,255,255,0.09)" : "transparent";
-      el.style.color = primary ? "var(--tx-1)" : "var(--tx-3)";
+      el.style.background = "transparent";
+      el.style.color = "var(--tx-3)";
     }}
   >
-    {label}
+    <Icon />
+    <span style={{ fontSize: 11, userSelect: "none" }}>{label}</span>
   </button>
 );
+
+// ─── Section header ───────────────────────────────────────────────────────────
+
+const SidebarSectionLabel = ({ children }: { children: React.ReactNode }) => (
+  <div style={{
+    padding: "10px 14px 4px",
+    fontSize: 9,
+    fontWeight: 700,
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.10em",
+    color: "var(--tx-4)",
+    userSelect: "none",
+  }}>
+    {children}
+  </div>
+);
+
 
 // ─── App Shell ────────────────────────────────────────────────────────────────
 
 export const AppShell = () => {
   const [section, setSection] = useState<AppSection>("compose");
-  const { project, loadMidi, loadProjectData, isPlaying } = useProjectStore();
+  const { project, loadMidi, loadProjectData, isPlaying, newProject } = useProjectStore();
+
+  const handleOpenScoreInComposer = async (filePath: string) => {
+    const bytes = await window.drumApp.readMidiBytes(filePath);
+    if (!bytes) return;
+    loadMidi({ bytes, filePath });
+    setSection("compose");
+  };
+
+  // ── Recent projects (localStorage) ────────────────────────────────────────
+  type RecentEntry = { name: string; ts: number };
+
+  const cleanFileName = (raw: string) =>
+    raw.split(/[\\/]/).pop()?.replace(/\.midi?$/i, "") ?? raw;
+
+  const formatTs = (ts: number): string => {
+    const now  = new Date();
+    const date = new Date(ts);
+    const h    = date.getHours().toString().padStart(2, "0");
+    const m    = date.getMinutes().toString().padStart(2, "0");
+    if (date.toDateString() === now.toDateString()) return `Aujourd'hui, ${h}:${m}`;
+    const yest = new Date(now); yest.setDate(yest.getDate() - 1);
+    if (date.toDateString() === yest.toDateString()) return `Hier, ${h}:${m}`;
+    return date.toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "2-digit" });
+  };
+
+  const [recents, setRecents] = useState<RecentEntry[]>(() => {
+    try {
+      const raw = localStorage.getItem("drumo_recents");
+      if (!raw) return [];
+      const parsed = JSON.parse(raw) as unknown[];
+      return parsed.slice(0, 5).map((item): RecentEntry => {
+        if (typeof item === "string") return { name: cleanFileName(item), ts: Date.now() };
+        if (typeof item === "object" && item !== null && "name" in item) return item as RecentEntry;
+        return { name: cleanFileName(String(item)), ts: Date.now() };
+      });
+    } catch { return []; }
+  });
+
+  const addRecent = (name: string) => {
+    const clean = cleanFileName(name);
+    setRecents((prev) => {
+      const next = [{ name: clean, ts: Date.now() }, ...prev.filter((n) => n.name !== clean)].slice(0, 5);
+      try { localStorage.setItem("drumo_recents", JSON.stringify(next)); } catch { /* */ }
+      return next;
+    });
+  };
 
   // ── File ops ───────────────────────────────────────────────────────────────
 
   const importMidi = async () => {
     const payload = await window.drumApp.openMidiFile();
     if (!payload) return;
-    try { loadMidi(payload); } catch { /* store sets message */ }
+    try {
+      loadMidi(payload);
+      addRecent(payload.filePath.split(/[\\/]/).pop()?.replace(/\.midi?$/i, "") ?? payload.filePath);
+    } catch { /* store sets message */ }
   };
 
   const saveProject = async () => {
@@ -245,7 +321,13 @@ export const AppShell = () => {
     const parsed = JSON.parse(loaded.content) as { project?: ParsedDrumProject; quantizeOptions?: Partial<QuantizeOptions> };
     if (!parsed.project || !Array.isArray(parsed.project.hits)) return;
     loadProjectData({ project: parsed.project, quantizeOptions: parsed.quantizeOptions });
+    if (parsed.project.sourceName) addRecent(parsed.project.sourceName);
   };
+
+  // Track current project name in recents
+  useEffect(() => {
+    if (project?.sourceName) addRecent(project.sourceName);
+  }, [project?.sourceName]);
 
   // ── Keyboard shortcuts ─────────────────────────────────────────────────────
 
@@ -269,49 +351,80 @@ export const AppShell = () => {
     const name = file.name.toLowerCase();
     if (!name.endsWith(".mid") && !name.endsWith(".midi")) return;
     const bytes = new Uint8Array(await file.arrayBuffer());
-    try { loadMidi({ bytes: Array.from(bytes), filePath: file.name }); } catch { /* */ }
+    try {
+      loadMidi({ bytes: Array.from(bytes), filePath: file.name });
+      addRecent(file.name.replace(/\.midi?$/i, ""));
+    } catch { /* */ }
   };
 
-  // ── Derived ────────────────────────────────────────────────────────────────
-
-  const projectName = project?.sourceName ?? "Aucun projet";
-  const bpm = project?.tempoBpm?.toFixed(0) ?? null;
-  // Show transport on all sections where playback is relevant
+  const projectName   = project?.sourceName ?? null;
+  const bpm           = project?.tempoBpm?.toFixed(0) ?? null;
+  const sig           = project ? `${project.timeSignature.numerator}/${project.timeSignature.denominator}` : null;
   const showTransport = section !== "settings" && section !== "library";
 
   return (
     <div
       className="app-bg"
-      style={{ display: "flex", height: "100vh", color: "var(--tx-1)", overflow: "hidden" }}
+      style={{ display: "flex", flexDirection: "column", height: "100vh", color: "var(--tx-1)", overflow: "hidden" }}
       onDrop={onDrop}
       onDragOver={(e) => e.preventDefault()}
     >
-      {/* ── Left sidebar (72 px) ── */}
+      {/* ── Menu bar — pleine largeur ── */}
+      <AppMenuBar
+        onNavigate={(s) => setSection(s)}
+        onImportMidi={() => void importMidi()}
+        onSaveProject={() => void saveProject()}
+        onLoadProject={() => void loadProject()}
+      />
+
+      {/* ── Corps de l'app (sidebar + main) ── */}
+      <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
+
+      {/* ── Sidebar (200px) ── */}
       <nav
         className="glass"
         style={{
-          width: 72,
+          width: 200,
           flexShrink: 0,
           display: "flex",
           flexDirection: "column",
           background: "var(--bg-1)",
           borderRight: "1px solid var(--sep)",
+          overflow: "hidden",
         }}
       >
-        {/* Logo */}
+        {/* Brand */}
         <div style={{
           height: 52,
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
+          gap: 10,
+          padding: "0 14px",
           borderBottom: "1px solid var(--sep)",
           flexShrink: 0,
         }}>
           <AppLogo />
+          <div>
+            <div style={{
+              fontSize: 13,
+              fontWeight: 800,
+              letterSpacing: "0.08em",
+              color: "var(--tx-1)",
+              lineHeight: 1,
+            }}>DRUMO</div>
+            <div style={{
+              fontSize: 8,
+              fontWeight: 500,
+              letterSpacing: "0.18em",
+              color: "var(--tx-4)",
+              marginTop: 2,
+              textTransform: "uppercase" as const,
+            }}>Groove Studio</div>
+          </div>
         </div>
 
-        {/* Main sections */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", paddingTop: 4 }}>
+        {/* Main navigation */}
+        <div style={{ paddingTop: 6, paddingBottom: 4 }}>
           {MAIN_SECTIONS.map(({ id, label, Icon }) => (
             <NavItem
               key={id}
@@ -323,21 +436,124 @@ export const AppShell = () => {
           ))}
         </div>
 
-        {/* Settings at bottom */}
-        <div style={{ flexShrink: 0, borderTop: "1px solid var(--sep)", paddingBottom: 8 }}>
+        {/* Bibliothèque quick-access */}
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          <div style={{ borderTop: "1px solid var(--sep)" }}>
+            <SidebarSectionLabel>Bibliothèque</SidebarSectionLabel>
+            {LIBRARY_ITEMS.map(({ label, Icon }) => (
+              <LibItem
+                key={label}
+                label={label}
+                Icon={Icon}
+                onClick={() => setSection("library")}
+              />
+            ))}
+          </div>
+
+          {/* Récents */}
+          {recents.length > 0 && (
+            <div style={{ borderTop: "1px solid var(--sep)", marginTop: 4 }}>
+              <SidebarSectionLabel>Récents</SidebarSectionLabel>
+              {recents.map(({ name, ts }) => (
+                <button
+                  key={name}
+                  type="button"
+                  style={{
+                    width: "calc(100% - 8px)",
+                    minHeight: 38,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "flex-start",
+                    justifyContent: "center",
+                    padding: "4px 10px 4px 28px",
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    borderRadius: "0 6px 6px 0",
+                    transition: "background 0.1s",
+                    overflow: "hidden",
+                    gap: 1,
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)"; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                >
+                  <span style={{
+                    fontSize: 11,
+                    fontWeight: name === projectName ? 600 : 400,
+                    color: name === projectName ? "var(--accent)" : "var(--tx-2)",
+                    userSelect: "none",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    width: "100%",
+                    textAlign: "left",
+                  }}>
+                    {name}
+                  </span>
+                  <span style={{
+                    fontSize: 9, color: "var(--tx-4)",
+                    userSelect: "none", whiteSpace: "nowrap",
+                  }}>
+                    {formatTs(ts)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Bottom: New project + Settings */}
+        <div style={{ flexShrink: 0, borderTop: "1px solid var(--sep)" }}>
+          <button
+            type="button"
+            onClick={() => { newProject(); setSection("compose"); }}
+            style={{
+              width: "calc(100% - 16px)",
+              margin: "8px 8px 4px",
+              height: 30,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              borderRadius: 7,
+              fontSize: 11,
+              fontWeight: 500,
+              background: "var(--bg-2)",
+              color: "var(--tx-2)",
+              border: "1px solid var(--sep-2)",
+              cursor: "pointer",
+              transition: "background 0.12s, color 0.12s",
+            }}
+            onMouseEnter={(e) => {
+              const el = e.currentTarget as HTMLElement;
+              el.style.background = "var(--bg-3)";
+              el.style.color = "var(--tx-1)";
+            }}
+            onMouseLeave={(e) => {
+              const el = e.currentTarget as HTMLElement;
+              el.style.background = "var(--bg-2)";
+              el.style.color = "var(--tx-2)";
+            }}
+          >
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+              <path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            Nouveau projet
+          </button>
           <NavItem
             label="Réglages"
             active={section === "settings"}
             onClick={() => setSection("settings")}
             Icon={IconSettings}
           />
+          <div style={{ height: 6 }} />
         </div>
       </nav>
 
       {/* ── Main content ── */}
       <main style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
-        {/* ── Top bar (44 px) ── */}
+        {/* ── App title bar ── */}
         <div
           className="glass-sm"
           style={{
@@ -345,75 +561,83 @@ export const AppShell = () => {
             flexShrink: 0,
             display: "flex",
             alignItems: "center",
-            gap: 0,
             borderBottom: "1px solid var(--sep)",
             background: "var(--bg-1)",
+            padding: "0 14px",
+            position: "relative",
           }}
         >
-          {/* Project info */}
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "0 14px",
-            flex: 1,
-            minWidth: 0,
-            overflow: "hidden",
-          }}>
-            <SaveDot hasProject={!!project} />
-            <span style={{
-              fontSize: 12,
-              fontWeight: 500,
-              color: project ? "var(--tx-2)" : "var(--tx-4)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}>
-              {projectName}
+          {/* Left: app name */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            <AppLogo />
+            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--tx-3)", whiteSpace: "nowrap", letterSpacing: "0.01em" }}>
+              DRUMO – Drum MIDI Scorer
             </span>
           </div>
 
-          {/* BPM pill — only when project loaded and not on settings */}
-          {bpm && section !== "settings" && (
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-              padding: "5px 12px",
-              borderRadius: 7,
-              background: "var(--bg-2)",
-              border: "1px solid var(--sep)",
-              flexShrink: 0,
-              marginRight: 10,
-            }}>
-              <span style={{ fontSize: 10, color: "var(--tx-4)", fontWeight: 500 }}>BPM</span>
-              <span style={{
-                fontFamily: "monospace",
-                fontSize: 13,
-                fontWeight: 700,
-                color: isPlaying ? "var(--c-green)" : "var(--tx-1)",
-                transition: "color 0.3s ease",
+          {/* Center: file name pill */}
+          <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center" }}>
+            {projectName ? (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 6,
+                height: 28, padding: "0 10px 0 9px", borderRadius: 7,
+                background: "var(--bg-3)", border: "1px solid var(--sep-2)",
+                cursor: "default", maxWidth: 360,
               }}>
-                {bpm}
-              </span>
-              {isPlaying && (
-                <span
-                  className="play-dot"
-                  style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--c-green)" }}
-                />
-              )}
-            </div>
-          )}
+                <svg width="11" height="13" viewBox="0 0 11 13" fill="none">
+                  <path d="M1.5 1h5.5l2.5 2.5V12a.5.5 0 01-.5.5h-7A.5.5 0 011 12V1.5A.5.5 0 011.5 1z" stroke="var(--tx-3)" strokeWidth="1.1" fill="none"/>
+                  <path d="M7 1v2.5h2.5" stroke="var(--tx-3)" strokeWidth="1.1" fill="none"/>
+                </svg>
+                <span style={{ fontSize: 12, fontWeight: 500, color: "var(--tx-1)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {projectName}.mid
+                </span>
+                <svg width="8" height="5" viewBox="0 0 8 5" fill="none">
+                  <path d="M1 1l3 3 3-3" stroke="var(--tx-4)" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+            ) : (
+              <span style={{ fontSize: 12, color: "var(--tx-4)", userSelect: "none" }}>Aucun projet ouvert</span>
+            )}
+          </div>
 
-          {/* File ops */}
-          <div style={{ display: "flex", gap: 2, padding: "0 10px", flexShrink: 0 }}>
-            <FileBtn label="Importer"    onClick={() => void importMidi()} primary />
-            <FileBtn label="Sauvegarder" onClick={() => void saveProject()} />
-            <FileBtn label="Charger"     onClick={() => void loadProject()} />
+          {/* Right: share + help */}
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 3, flexShrink: 0 }}>
+            <button
+              type="button"
+              title="Exporter / Partager"
+              onClick={() => void window.drumApp.exportPdf()}
+              style={{
+                width: 28, height: 28, borderRadius: 6, background: "transparent",
+                border: "1px solid transparent", color: "var(--tx-3)",
+                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                transition: "all 0.12s",
+              }}
+              onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.background = "var(--bg-hover)"; el.style.color = "var(--tx-2)"; }}
+              onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.background = "transparent"; el.style.color = "var(--tx-3)"; }}
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M11 6l-3-3-3 3M8 3v8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M4 10v3h8v-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            <button
+              type="button"
+              title="Aide"
+              style={{
+                width: 28, height: 28, borderRadius: 6, background: "transparent",
+                border: "1px solid transparent", color: "var(--tx-3)",
+                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 14, fontWeight: 600, transition: "all 0.12s",
+              }}
+              onMouseEnter={(e) => { const el = e.currentTarget as HTMLElement; el.style.background = "var(--bg-hover)"; el.style.color = "var(--tx-2)"; }}
+              onMouseLeave={(e) => { const el = e.currentTarget as HTMLElement; el.style.background = "transparent"; el.style.color = "var(--tx-3)"; }}
+            >
+              ?
+            </button>
           </div>
         </div>
 
-        {/* ── Transport bar — app-level, Compose/Practice/Analyze/Learn ── */}
+        {/* ── Transport ── */}
         {showTransport && <TransportBar />}
 
         {/* ── Section content ── */}
@@ -422,10 +646,12 @@ export const AppShell = () => {
           {section === "analyze"  && <AnalyzePage  />}
           {section === "practice" && <PracticePage />}
           {section === "learn"    && <LearnPage    />}
-          {section === "library"  && <LibraryPage  />}
+          {section === "library"  && <LibraryPage onOpenScoreInComposer={handleOpenScoreInComposer} />}
           {section === "settings" && <SettingsPage />}
         </div>
       </main>
+
+      </div>{/* fin corps sidebar+main */}
     </div>
   );
 };

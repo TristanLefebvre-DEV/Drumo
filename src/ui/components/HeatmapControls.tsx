@@ -35,7 +35,7 @@ export const HeatmapControls = ({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 rounded-xl border border-zinc-800/70 bg-zinc-950/60 px-3 py-1.5 text-[11px]">
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-3 py-1.5 text-[11px]">
       {/* ── Heatmap expanded ── */}
       {heatmapEnabled && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -62,7 +62,7 @@ export const HeatmapControls = ({
           </div>
 
           <div className="flex items-center gap-3 text-[10px]">
-            <span style={{ color: mapVelocityToColor(0.15, sensitivity) }}>● ghost</span>
+            <span style={{ color: mapVelocityToColor(0.15, sensitivity) }}>● fantôme</span>
             <span style={{ color: mapVelocityToColor(0.55, sensitivity) }}>● normal</span>
             <span style={{ color: mapVelocityToColor(0.95, sensitivity) }}>● accent</span>
           </div>
@@ -95,7 +95,7 @@ export const HeatmapControls = ({
       {/* ── Sound Preview expanded ── */}
       {previewEnabled && (
         <div className="flex items-center gap-2">
-          <span className="text-zinc-600">Volume preview</span>
+          <span className="text-zinc-600">Volume écoute</span>
           <input
             type="range" min={0} max={100} step={5}
             value={Math.round(previewVolume * 100)}

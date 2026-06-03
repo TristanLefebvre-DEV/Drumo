@@ -26,10 +26,14 @@ export class AudioClock {
 
   start(): void {
     if (this.handle !== null) return;
-    this.handle = setInterval(() => {
+    const fireWindow = () => {
       const now = this.ctx.currentTime;
       this.onSchedule(now, now + this.lookaheadSec);
-    }, this.intervalMs);
+    };
+    // Fire immediately so notes at startTick are scheduled before the first
+    // setInterval tick (which arrives ~22 ms later and could be slightly late).
+    fireWindow();
+    this.handle = setInterval(fireWindow, this.intervalMs);
   }
 
   stop(): void {

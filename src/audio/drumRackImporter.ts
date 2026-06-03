@@ -86,6 +86,7 @@ export interface ImportedDrumRack {
 
 const PIECE_VEX: Record<DrumPiece, { vexKey: string; notehead: "normal" | "x"; stem: 1 | -1 }> = {
   kick:         { vexKey: "f/4", notehead: "normal", stem: -1 },
+  kick2:        { vexKey: "e/4", notehead: "normal", stem: -1 },
   snare:        { vexKey: "c/5", notehead: "normal", stem: -1 },
   snareRim:     { vexKey: "c/5", notehead: "x",      stem: -1 },
   hihatClosed:  { vexKey: "g/5", notehead: "x",      stem:  1 },
