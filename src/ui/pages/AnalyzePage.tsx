@@ -1,22 +1,20 @@
 /**
- * Analyze Page
+ * Analyze Page — v2
  *
- * Dedicated analysis dashboard — all analysis tools always visible,
- * no toggling required.
+ * Dedicated analysis dashboard. All analysis tools visible at once,
+ * no toggling. Transport is at app-shell level.
  *
- * Layout (3-column when project loaded):
- *
- *   ┌───────────────────────────────────────────────────────────────────┐
- *   │  Summary bar (score overview)                                     │
- *   ├───────────────────────────────────────────────────────────────────┤
- *   │  Energy timeline (full width)                                     │
- *   │  Section timeline (full width)                                    │
- *   ├──────────────┬────────────────────────────┬───────────────────────┤
- *   │  Ergonomics  │  Limb & Sticking           │  Playability Details  │
- *   │  & Energy    │  (stats + legend)          │  (issue list)         │
- *   ├──────────────┴────────────────────────────┴───────────────────────┤
- *   │  Body Simulation (full width)                                     │
- *   └───────────────────────────────────────────────────────────────────┘
+ * Layout when project loaded:
+ *   ┌─────────────────────────────────────────────┐
+ *   │  Summary stats (8-column grid)              │
+ *   ├─────────────────────────────────────────────┤
+ *   │  Energy timeline (full width)               │
+ *   │  Section map (full width)                   │
+ *   ├────────────┬──────────────┬─────────────────┤
+ *   │  Limbs     │  Ergonomics  │  Playability    │
+ *   ├────────────┴──────────────┴─────────────────┤
+ *   │  Body simulation (collapsible)              │
+ *   └─────────────────────────────────────────────┘
  */
 
 import { useMemo, useState } from "react";
@@ -30,41 +28,90 @@ import { analyzeErgonomics }      from "../../simulation/ergonomicsEngine";
 import { energyColor }            from "../../analysis/energyFlowAnalyzer";
 import { detectMusicalSections, MUSICAL_ROLE_LABELS } from "../../analysis/sectionEnergyDetector";
 
-// ─── Stat card ────────────────────────────────────────────────────────────────
+// ─── Primitives ───────────────────────────────────────────────────────────────
 
 const StatCard = ({
-  label, value, sub, accentColor = "var(--text-1)",
+  label, value, sub, accentColor = "var(--tx-1)",
 }: { label: string; value: string | number; sub?: string; accentColor?: string }) => (
-  <div
-    className="flex flex-col gap-1 rounded-xl p-3"
-    style={{ background: "var(--bg-2)", border: "1px solid var(--border-2)" }}
-  >
-    <span className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "var(--text-3)" }}>
+  <div style={{
+    display: "flex",
+    flexDirection: "column",
+    gap: 4,
+    borderRadius: 10,
+    padding: "10px 12px",
+    background: "var(--bg-2)",
+    border: "1px solid var(--sep-2)",
+  }}>
+    <span style={{
+      fontSize: 9, fontWeight: 600,
+      textTransform: "uppercase" as const, letterSpacing: "0.08em",
+      color: "var(--tx-3)",
+    }}>
       {label}
     </span>
-    <span className="text-xl font-black font-mono tabular-nums" style={{ color: accentColor }}>
+    <span style={{
+      fontSize: 20, fontWeight: 800, fontFamily: "monospace",
+      fontVariantNumeric: "tabular-nums",
+      color: accentColor,
+    }}>
       {value}
     </span>
-    {sub && <span className="text-[10px]" style={{ color: "var(--text-3)" }}>{sub}</span>}
+    {sub && <span style={{ fontSize: 10, color: "var(--tx-3)" }}>{sub}</span>}
   </div>
 );
 
-// ─── Section heading ──────────────────────────────────────────────────────────
-
 const SectionHead = ({ title }: { title: string }) => (
-  <h2 className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: "var(--text-3)" }}>
+  <h2 style={{
+    fontSize: 10, fontWeight: 700,
+    textTransform: "uppercase" as const, letterSpacing: "0.11em",
+    color: "var(--tx-3)", margin: "0 0 10px",
+  }}>
     {title}
   </h2>
+);
+
+const AnalysisCard = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <div style={{
+    borderRadius: 12,
+    padding: 16,
+    background: "var(--bg-1)",
+    border: "1px solid var(--sep-2)",
+    display: "flex",
+    flexDirection: "column",
+    gap: 14,
+  }}>
+    <SectionHead title={title} />
+    {children}
+  </div>
+);
+
+const GaugeBar = ({ value, max = 100, color }: { value: number; max?: number; color: string }) => (
+  <div style={{ height: 5, width: "100%", borderRadius: 999, overflow: "hidden", background: "var(--bg-3)" }}>
+    <div style={{
+      height: "100%",
+      borderRadius: 999,
+      width: `${Math.min(100, (value / max) * 100)}%`,
+      background: color,
+      transition: "width 0.5s ease",
+    }} />
+  </div>
 );
 
 // ─── Empty state ──────────────────────────────────────────────────────────────
 
 const AnalyzeEmpty = () => (
-  <div className="flex h-full items-center justify-center">
-    <div className="space-y-3 text-center">
-      <div className="mx-auto h-12 w-12 rounded-2xl" style={{ background: "var(--bg-2)", border: "1px solid var(--border-2)" }} />
-      <p className="text-sm font-semibold" style={{ color: "var(--text-2)" }}>Analyse en attente</p>
-      <p className="text-xs" style={{ color: "var(--text-3)" }}>
+  <div style={{ display: "flex", height: "100%", alignItems: "center", justifyContent: "center" }}>
+    <div style={{ textAlign: "center", maxWidth: 320 }}>
+      <div style={{
+        width: 56, height: 56, margin: "0 auto 16px",
+        borderRadius: 16,
+        background: "var(--bg-2)",
+        border: "1px solid var(--sep-2)",
+      }} />
+      <p style={{ fontSize: 13, fontWeight: 600, color: "var(--tx-2)", margin: "0 0 6px" }}>
+        En attente d'analyse
+      </p>
+      <p style={{ fontSize: 11, color: "var(--tx-3)", margin: 0 }}>
         Charge un fichier MIDI dans <strong style={{ color: "var(--accent)" }}>Compose</strong> pour analyser le groove.
       </p>
     </div>
@@ -81,8 +128,6 @@ export const AnalyzePage = () => {
 
   const [showBodySim, setShowBodySim] = useState(true);
 
-  // ── Derived analysis data ────────────────────────────────────────────────
-
   const playabilitySummary = useMemo(() => summarizePlayability(playabilityMap), [playabilityMap]);
   const limbStats          = useMemo(() => computeLimbStats(limbMap),  [limbMap]);
   const xoverCount         = useMemo(() => crossoverCount(limbMap),    [limbMap]);
@@ -98,27 +143,45 @@ export const AnalyzePage = () => {
     [sections, energyFlow]
   );
 
-  const energyAvg   = energyFlow?.avgScore  ?? 0;
+  const energyAvg   = energyFlow?.avgScore   ?? 0;
   const energyTrend = energyFlow?.globalTrend ?? "steady";
 
-  const TREND_LABELS = { rising: "↑ Montée", falling: "↓ Descente", steady: "→ Stable", dynamic: "⚡ Dynamique" };
+  const TREND_LABELS: Record<string, string> = {
+    rising: "↑ Rising", falling: "↓ Falling", steady: "→ Steady", dynamic: "⚡ Dynamic",
+  };
 
   if (!project) return (
-    <div className="h-full" style={{ background: "var(--bg-base)" }}>
+    <div style={{ height: "100%", background: "var(--bg-app)" }}>
       <AnalyzeEmpty />
     </div>
   );
 
+  const seekMeasure = (m: number) =>
+    void seekTo(m * project.ppq * project.timeSignature.numerator);
+
   return (
     <div
-      className="flex h-full flex-col gap-3 overflow-auto p-3 section-fade-in"
-      style={{ background: "var(--bg-base)" }}
+      className="fade-in"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 14,
+        overflow: "auto",
+        padding: 14,
+        background: "var(--bg-app)",
+        height: "100%",
+      }}
     >
       {/* ── Summary stats bar ── */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
-        <StatCard label="Hits"       value={project.hits.length} />
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))",
+        gap: 8,
+      }}>
+        <StatCard label="Notes"      value={project.hits.length} />
         <StatCard label="BPM"        value={project.tempoBpm.toFixed(0)} />
-        <StatCard label="Playability"
+        <StatCard
+          label="Playability"
           value={playabilitySummary.overallScore}
           sub={`${playabilitySummary.errorCount} erreurs`}
           accentColor={playabilityBadgeColor(
@@ -128,43 +191,50 @@ export const AnalyzePage = () => {
             : "impossible"
           )}
         />
-        <StatCard label="Énergie moy."
+        <StatCard
+          label="Énergie moy."
           value={energyAvg}
           sub={TREND_LABELS[energyTrend]}
           accentColor={energyColor(energyAvg)}
         />
-        <StatCard label="Croisements" value={xoverCount}
-          accentColor={xoverCount > 10 ? "#f97316" : "var(--text-1)"}
+        <StatCard
+          label="Croisements"
+          value={xoverCount}
+          accentColor={xoverCount > 10 ? "var(--c-orange)" : "var(--tx-1)"}
         />
-        <StatCard label="Confiance"   value={`${Math.round(confAvg * 100)}%`}
-          accentColor={confAvg >= 0.8 ? "#4ade80" : confAvg >= 0.6 ? "#f59e0b" : "#ef4444"}
+        <StatCard
+          label="Confiance"
+          value={`${Math.round(confAvg * 100)}%`}
+          accentColor={confAvg >= 0.8 ? "var(--c-green)" : confAvg >= 0.6 ? "var(--c-yellow)" : "var(--c-red)"}
         />
         {ergonomics && (
-          <StatCard label="Ergonomie"   value={ergonomics.overallScore}
+          <StatCard
+            label="Ergonomie"
+            value={ergonomics.overallScore}
             sub={ergonomics.fatigueScore > 40 ? "Fatigue élevée" : ""}
-            accentColor={ergonomics.overallScore >= 70 ? "#4ade80" : ergonomics.overallScore >= 40 ? "#f59e0b" : "#ef4444"}
+            accentColor={ergonomics.overallScore >= 70 ? "var(--c-green)" : ergonomics.overallScore >= 40 ? "var(--c-yellow)" : "var(--c-red)"}
           />
         )}
-        <StatCard label="Sections"    value={sections.length}
-          sub={`${musicalSections.filter(s => s.musicalRole === "chorus").length} chorus`}
+        <StatCard
+          label="Sections"
+          value={sections.length}
+          sub={`${musicalSections.filter(s => s.musicalRole === "chorus").length} refrain`}
         />
       </div>
 
-      {/* ── Energy timeline (full width) ── */}
+      {/* ── Energy flow ── */}
       {energyFlow && energyFlow.measures.length > 0 && rhythm && (
         <div>
-          <SectionHead title="Energy Flow" />
-          <div className="mt-1.5">
-            <EnergyTimeline
-              energyFlow={energyFlow}
-              sections={sections}
-              activeTick={activeTick}
-              totalMeasures={rhythm.measures.length}
-              ppq={project.ppq}
-              timeSignature={project.timeSignature}
-              onSeekToMeasure={(m) => void seekTo(m * project.ppq * project.timeSignature.numerator)}
-            />
-          </div>
+          <SectionHead title="Flux d'énergie" />
+          <EnergyTimeline
+            energyFlow={energyFlow}
+            sections={sections}
+            activeTick={activeTick}
+            totalMeasures={rhythm.measures.length}
+            ppq={project.ppq}
+            timeSignature={project.timeSignature}
+            onSeekToMeasure={seekMeasure}
+          />
         </div>
       )}
 
@@ -172,36 +242,39 @@ export const AnalyzePage = () => {
       {sections.length > 0 && rhythm && (
         <div>
           <SectionHead title="Sections" />
-          <div className="mt-1.5">
-            <SectionTimeline
-              sections={sections}
-              playabilityMap={playabilityMap}
-              totalMeasures={rhythm.measures.length}
-              onSeekToMeasure={(m) => void seekTo(m * project.ppq * project.timeSignature.numerator)}
-            />
-          </div>
+          <SectionTimeline
+            sections={sections}
+            playabilityMap={playabilityMap}
+            totalMeasures={rhythm.measures.length}
+            onSeekToMeasure={seekMeasure}
+          />
         </div>
       )}
 
       {/* ── Musical roles ── */}
       {musicalSections.length > 0 && (
         <div>
-          <SectionHead title="Rôles Musicaux" />
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
+          <SectionHead title="Rôles musicaux" />
+          <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 6 }}>
             {musicalSections.map((ms, i) => (
               <div
                 key={i}
-                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1"
-                style={{ background: `${ms.color}15`, border: `1px solid ${ms.color}30` }}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  padding: "4px 10px", borderRadius: 8,
+                  background: `${ms.color}15`, border: `1px solid ${ms.color}30`,
+                }}
               >
-                <span className="text-[10px] font-semibold" style={{ color: ms.color }}>
+                <span style={{ fontSize: 10, fontWeight: 600, color: ms.color }}>
                   {MUSICAL_ROLE_LABELS[ms.musicalRole]}
                 </span>
-                <span className="text-[9px]" style={{ color: "var(--text-3)" }}>
+                <span style={{ fontSize: 9, color: "var(--tx-3)" }}>
                   m.{ms.section.startMeasure + 1}–{ms.section.endMeasure + 1}
                 </span>
-                <span className="rounded px-1 text-[9px] font-mono"
-                  style={{ background: "var(--bg-3)", color: energyColor(ms.avgEnergy) }}>
+                <span style={{
+                  borderRadius: 4, padding: "1px 4px", fontSize: 9, fontFamily: "monospace",
+                  background: "var(--bg-3)", color: energyColor(ms.avgEnergy),
+                }}>
                   {ms.avgEnergy}
                 </span>
               </div>
@@ -211,165 +284,157 @@ export const AnalyzePage = () => {
       )}
 
       {/* ── Three-column analysis ── */}
-      <div className="grid min-h-0 grid-cols-1 gap-3 lg:grid-cols-3">
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+        gap: 12,
+      }}>
 
-        {/* ── Col 1: Limb stats ── */}
-        <div
-          className="rounded-xl p-4 space-y-4"
-          style={{ background: "var(--bg-1)", border: "1px solid var(--border-2)" }}
-        >
-          <SectionHead title="Analyse des Membres" />
-
-          <div className="grid grid-cols-2 gap-2">
+        {/* Col 1: Limb stats */}
+        <AnalysisCard title="Analyse des membres">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
             {(["RH","LH","RF","LF"] as const).map((l) => (
-              <div key={l} className="rounded-lg p-3" style={{ background: "var(--bg-2)" }}>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="flex h-6 w-8 items-center justify-center rounded-full text-[9px] font-black text-white"
-                    style={{ backgroundColor: LIMB_COLOR[l].hex }}>
+              <div key={l} style={{ borderRadius: 8, padding: 10, background: "var(--bg-2)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 6 }}>
+                  <span style={{
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    height: 20, width: 28, borderRadius: 4,
+                    fontSize: 9, fontWeight: 800, color: "#fff",
+                    backgroundColor: LIMB_COLOR[l].hex,
+                  }}>
                     {l}
                   </span>
-                  <span className="text-[10px] font-semibold" style={{ color: "var(--text-2)" }}>
-                    {{ RH: "Main droite", LH: "Main gauche", RF: "Pied droit", LF: "Pied gauche" }[l]}
+                  <span style={{ fontSize: 10, fontWeight: 600, color: "var(--tx-2)" }}>
+                    {{ RH: "M.Droite", LH: "M.Gauche", RF: "P.Droit", LF: "P.Gauche" }[l]}
                   </span>
                 </div>
-                <p className="text-2xl font-black font-mono" style={{ color: LIMB_COLOR[l].hex }}>
+                <p style={{ fontFamily: "monospace", fontSize: 22, fontWeight: 800, margin: "0 0 2px", color: LIMB_COLOR[l].hex }}>
                   {limbStats[l]}
                 </p>
-                <p className="text-[9px]" style={{ color: "var(--text-3)" }}>
+                <p style={{ fontSize: 9, color: "var(--tx-3)", margin: 0 }}>
                   {limbStats.total > 0 ? `${Math.round(limbStats[l] / limbStats.total * 100)}%` : "0%"}
                 </p>
               </div>
             ))}
           </div>
 
-          <div className="space-y-2 pt-1">
-            <div className="flex justify-between text-[10px]">
-              <span style={{ color: "var(--text-3)" }}>Croisements de bras</span>
-              <span className="font-mono font-semibold"
-                style={{ color: xoverCount > 10 ? "#f59e0b" : "var(--text-1)" }}>
-                {xoverCount}
-              </span>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10 }}>
+              <span style={{ color: "var(--tx-3)" }}>Croisements de bras</span>
+              <span style={{
+                fontFamily: "monospace", fontWeight: 600,
+                color: xoverCount > 10 ? "var(--c-yellow)" : "var(--tx-1)",
+              }}>{xoverCount}</span>
             </div>
-            <div className="flex justify-between text-[10px]">
-              <span style={{ color: "var(--text-3)" }}>Confiance moyenne</span>
-              <span className="font-mono font-semibold"
-                style={{ color: confAvg >= 0.8 ? "#4ade80" : confAvg >= 0.6 ? "#f59e0b" : "#ef4444" }}>
-                {Math.round(confAvg * 100)}%
-              </span>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10 }}>
+              <span style={{ color: "var(--tx-3)" }}>Confiance moyenne</span>
+              <span style={{
+                fontFamily: "monospace", fontWeight: 600,
+                color: confAvg >= 0.8 ? "var(--c-green)" : confAvg >= 0.6 ? "var(--c-yellow)" : "var(--c-red)",
+              }}>{Math.round(confAvg * 100)}%</span>
             </div>
-            <div className="flex justify-between text-[10px]">
-              <span style={{ color: "var(--text-3)" }}>Mode sticking</span>
-              <span className="font-mono font-semibold capitalize" style={{ color: "var(--accent)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10 }}>
+              <span style={{ color: "var(--tx-3)" }}>Mode sticking</span>
+              <span style={{ fontFamily: "monospace", fontWeight: 600, textTransform: "capitalize" as const, color: "var(--accent)" }}>
                 {limbMode}
               </span>
             </div>
           </div>
-        </div>
+        </AnalysisCard>
 
-        {/* ── Col 2: Ergonomics ── */}
-        <div
-          className="rounded-xl p-4 space-y-4"
-          style={{ background: "var(--bg-1)", border: "1px solid var(--border-2)" }}
-        >
-          <SectionHead title="Ergonomie & Mouvement" />
-
+        {/* Col 2: Ergonomics */}
+        <AnalysisCard title="Ergonomie & Mouvement">
           {ergonomics ? (
-            <div className="space-y-3">
-              {/* Score gauge */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <div>
-                <div className="flex justify-between mb-1">
-                  <span className="text-[10px]" style={{ color: "var(--text-3)" }}>Score global</span>
-                  <span className="font-mono font-bold text-sm"
-                    style={{ color: ergonomics.overallScore >= 70 ? "#4ade80" : ergonomics.overallScore >= 40 ? "#f59e0b" : "#ef4444" }}>
-                    {ergonomics.overallScore}/100
-                  </span>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, fontSize: 11 }}>
+                  <span style={{ color: "var(--tx-3)" }}>Score global</span>
+                  <span style={{
+                    fontFamily: "monospace", fontWeight: 700,
+                    color: ergonomics.overallScore >= 70 ? "var(--c-green)" : ergonomics.overallScore >= 40 ? "var(--c-yellow)" : "var(--c-red)",
+                  }}>{ergonomics.overallScore}/100</span>
                 </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--bg-3)" }}>
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${ergonomics.overallScore}%`,
-                      background: ergonomics.overallScore >= 70 ? "#4ade80" : ergonomics.overallScore >= 40 ? "#f59e0b" : "#ef4444",
-                    }}
-                  />
-                </div>
+                <GaugeBar
+                  value={ergonomics.overallScore}
+                  color={ergonomics.overallScore >= 70 ? "var(--c-green)" : ergonomics.overallScore >= 40 ? "var(--c-yellow)" : "var(--c-red)"}
+                />
               </div>
 
-              {/* Fatigue gauge */}
               <div>
-                <div className="flex justify-between mb-1">
-                  <span className="text-[10px]" style={{ color: "var(--text-3)" }}>Fatigue</span>
-                  <span className="font-mono font-bold text-sm"
-                    style={{ color: ergonomics.fatigueScore < 30 ? "#4ade80" : ergonomics.fatigueScore < 60 ? "#f59e0b" : "#ef4444" }}>
-                    {ergonomics.fatigueScore}/100
-                  </span>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, fontSize: 11 }}>
+                  <span style={{ color: "var(--tx-3)" }}>Fatigue</span>
+                  <span style={{
+                    fontFamily: "monospace", fontWeight: 700,
+                    color: ergonomics.fatigueScore < 30 ? "var(--c-green)" : ergonomics.fatigueScore < 60 ? "var(--c-yellow)" : "var(--c-red)",
+                  }}>{ergonomics.fatigueScore}/100</span>
                 </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ background: "var(--bg-3)" }}>
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${ergonomics.fatigueScore}%`,
-                      background: ergonomics.fatigueScore < 30 ? "#4ade80" : ergonomics.fatigueScore < 60 ? "#f59e0b" : "#ef4444",
-                    }}
-                  />
-                </div>
+                <GaugeBar
+                  value={ergonomics.fatigueScore}
+                  color={ergonomics.fatigueScore < 30 ? "var(--c-green)" : ergonomics.fatigueScore < 60 ? "var(--c-yellow)" : "var(--c-red)"}
+                />
               </div>
 
-              {/* Limb workloads */}
               {(["RH","LH","RF","LF"] as const).map((l) => {
                 const w = ergonomics.limbWorkloads[l];
                 return (
-                  <div key={l} className="flex items-center gap-2 text-[10px]">
-                    <span className="w-6 rounded px-1 text-center text-[9px] font-bold text-white"
-                      style={{ backgroundColor: LIMB_COLOR[l].hex }}>
-                      {l}
-                    </span>
-                    <span style={{ color: "var(--text-3)" }} className="w-10">{w.hitCount}x</span>
-                    <div className="flex-1 h-1 overflow-hidden rounded-full" style={{ background: "var(--bg-3)" }}>
-                      <div className="h-full rounded-full"
-                        style={{ width: `${Math.min(100, w.avgDistance * 10)}%`, backgroundColor: LIMB_COLOR[l].hex + "99" }} />
+                  <div key={l} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 10 }}>
+                    <span style={{
+                      width: 24, borderRadius: 4, padding: "1px 4px", textAlign: "center",
+                      fontSize: 9, fontWeight: 800, color: "#fff",
+                      backgroundColor: LIMB_COLOR[l].hex,
+                    }}>{l}</span>
+                    <span style={{ color: "var(--tx-3)", width: 36 }}>{w.hitCount}×</span>
+                    <div style={{ flex: 1, height: 4, overflow: "hidden", borderRadius: 999, background: "var(--bg-3)" }}>
+                      <div style={{
+                        height: "100%", borderRadius: 999,
+                        width: `${Math.min(100, w.avgDistance * 10)}%`,
+                        backgroundColor: LIMB_COLOR[l].hex + "99",
+                      }} />
                     </div>
-                    <span className="w-12 text-right font-mono" style={{ color: "var(--text-3)" }}>
+                    <span style={{ width: 36, textAlign: "right", fontFamily: "monospace", color: "var(--tx-3)" }}>
                       {w.avgDistance.toFixed(1)}u
                     </span>
                   </div>
                 );
               })}
 
-              <p className="text-[10px] rounded-lg px-3 py-2" style={{ background: "var(--bg-2)", color: "var(--text-2)" }}>
+              <p style={{
+                fontSize: 11, padding: "8px 10px", borderRadius: 8,
+                background: "var(--bg-2)", color: "var(--tx-2)", margin: 0, lineHeight: 1.5,
+              }}>
                 {ergonomics.summary}
               </p>
             </div>
           ) : (
-            <p className="text-[10px]" style={{ color: "var(--text-3)" }}>
-              Aucune donnée — limb analysis non disponible.
+            <p style={{ fontSize: 11, color: "var(--tx-3)", margin: 0 }}>
+              Aucune donnée — analyse des membres indisponible.
             </p>
           )}
-        </div>
+        </AnalysisCard>
 
-        {/* ── Col 3: Playability issues ── */}
-        <div
-          className="rounded-xl p-4 space-y-3"
-          style={{ background: "var(--bg-1)", border: "1px solid var(--border-2)" }}
-        >
-          <div className="flex items-center justify-between">
-            <SectionHead title="Problèmes de jouabilité" />
+        {/* Col 3: Playability */}
+        <AnalysisCard title="Problèmes de jouabilité">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             {playabilitySummary.errorCount > 0 && (
-              <span className="rounded-full px-2 py-0.5 text-[9px] font-bold"
-                style={{ background: "rgba(239,68,68,0.15)", color: "#ef4444" }}>
+              <span style={{
+                borderRadius: 999, padding: "2px 8px", fontSize: 10, fontWeight: 700,
+                background: "rgba(255,69,58,0.12)", color: "var(--c-red)",
+              }}>
                 {playabilitySummary.errorCount} erreurs
               </span>
             )}
           </div>
 
           {playabilitySummary.totalIssues === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-6">
-              <span className="text-2xl">✓</span>
-              <p className="text-[11px] font-semibold" style={{ color: "#4ade80" }}>Aucun problème détecté</p>
-              <p className="text-[10px]" style={{ color: "var(--text-3)" }}>Pattern entièrement jouable</p>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "16px 0" }}>
+              <span style={{ fontSize: 20, color: "var(--c-green)" }}>✓</span>
+              <p style={{ fontSize: 12, fontWeight: 600, color: "var(--c-green)", margin: 0 }}>
+                Aucun problème détecté
+              </p>
+              <p style={{ fontSize: 11, color: "var(--tx-3)", margin: 0 }}>Pattern entièrement jouable</p>
             </div>
           ) : (
-            <div className="space-y-2 overflow-auto max-h-64 pr-1">
+            <div style={{ maxHeight: 240, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
               {Object.values(playabilityMap)
                 .filter((m) => m.issues.length > 0)
                 .sort((a, b) => b.score - a.score)
@@ -378,24 +443,21 @@ export const AnalyzePage = () => {
                 .map((issue, i) => (
                   <div
                     key={i}
-                    className="rounded-lg p-2.5"
                     style={{
-                      background: issue.severity === "error" ? "rgba(239,68,68,0.06)" : "rgba(245,158,11,0.06)",
-                      border: `1px solid ${issue.severity === "error" ? "rgba(239,68,68,0.2)" : "rgba(245,158,11,0.2)"}`,
+                      borderRadius: 8, padding: "8px 10px",
+                      background: issue.severity === "error" ? "rgba(255,69,58,0.06)" : "rgba(255,159,10,0.06)",
+                      border: `1px solid ${issue.severity === "error" ? "rgba(255,69,58,0.18)" : "rgba(255,159,10,0.18)"}`,
                     }}
                   >
-                    <div className="flex items-start gap-2">
-                      <span className="shrink-0 text-[10px]"
-                        style={{ color: issue.severity === "error" ? "#ef4444" : "#f59e0b" }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 7 }}>
+                      <span style={{ fontSize: 10, flexShrink: 0, color: issue.severity === "error" ? "var(--c-red)" : "var(--c-orange)" }}>
                         {issue.severity === "error" ? "✕" : "▲"}
                       </span>
                       <div>
-                        <p className="text-[10px] leading-snug" style={{ color: "var(--text-1)" }}>
+                        <p style={{ fontSize: 11, margin: "0 0 2px", color: "var(--tx-1)", lineHeight: 1.4 }}>
                           {issue.description}
                         </p>
-                        <p className="mt-0.5 text-[9px]" style={{ color: "var(--text-3)" }}>
-                          {issue.suggestion}
-                        </p>
+                        <p style={{ fontSize: 10, margin: 0, color: "var(--tx-3)" }}>{issue.suggestion}</p>
                       </div>
                     </div>
                   </div>
@@ -404,41 +466,45 @@ export const AnalyzePage = () => {
             </div>
           )}
 
-          <div className="space-y-1.5 pt-1 border-t" style={{ borderColor: "var(--border-1)" }}>
-            <div className="flex justify-between text-[10px]">
-              <span style={{ color: "var(--text-3)" }}>Mesures problématiques</span>
-              <span className="font-mono" style={{ color: "var(--text-1)" }}>{playabilitySummary.problematicMeasures}</span>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingTop: 8, borderTop: "1px solid var(--sep)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10 }}>
+              <span style={{ color: "var(--tx-3)" }}>Mesures problématiques</span>
+              <span style={{ fontFamily: "monospace", color: "var(--tx-1)" }}>{playabilitySummary.problematicMeasures}</span>
             </div>
-            <div className="flex justify-between text-[10px]">
-              <span style={{ color: "var(--text-3)" }}>Score global</span>
-              <span className="font-mono font-semibold"
-                style={{ color: playabilityBadgeColor(
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10 }}>
+              <span style={{ color: "var(--tx-3)" }}>Score global</span>
+              <span style={{
+                fontFamily: "monospace", fontWeight: 600,
+                color: playabilityBadgeColor(
                   playabilitySummary.overallScore < 40 ? "ok" :
                   playabilitySummary.overallScore < 70 ? "hard" :
                   playabilitySummary.overallScore < 85 ? "very-hard" : "impossible"
-                )}}>
+                ),
+              }}>
                 {playabilitySummary.overallScore}/100
               </span>
             </div>
           </div>
-        </div>
+        </AnalysisCard>
       </div>
 
-      {/* ── Body simulation (full width, collapsible) ── */}
+      {/* ── Body simulation ── */}
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <SectionHead title="Body Simulation" />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+          <SectionHead title="Simulation corporelle" />
           <button
             type="button"
             onClick={() => setShowBodySim((v) => !v)}
-            className="text-[10px] transition"
-            style={{ color: "var(--text-3)" }}
+            style={{
+              fontSize: 10, background: "none", border: "none", cursor: "pointer",
+              color: "var(--tx-3)", padding: "2px 6px",
+            }}
           >
             {showBodySim ? "▲ Réduire" : "▼ Afficher"}
           </button>
         </div>
         {showBodySim && (
-          <div style={{ height: 280 }}>
+          <div style={{ height: 280, borderRadius: 12, overflow: "hidden", border: "1px solid var(--sep)" }}>
             <DrummerVisualizer showEducationalMode={false} />
           </div>
         )}

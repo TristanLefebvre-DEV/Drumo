@@ -1,293 +1,448 @@
 /**
- * Humanize Panel
+ * Panneau d'humanisation — v2
  *
- * Side panel for controlling the Humanize Engine.
+ * Contrôles indépendants pour chaque dimension du jeu humain :
  *
- * Controls:
- *   • Main slider: Robot (0%) ←→ Human (100%)
- *   • 5 groove profiles (Tight Studio, Loose Jazz, Aggressive Metal, Funk Pocket, Vintage Human)
- *   • Sub-sliders: Timing, Velocity, Swing
- *   • Pocket Visualization: per-instrument timing offset indicator (behind/ahead)
+ *   Timing       — décalages temporels (ms avant/après le temps)
+ *   Vélocité     — variation d'intensité entre les frappes
+ *   Accents      — renforcement des temps forts
+ *   Groove       — placement dans le "pocket" du groove
+ *   Swing        — triolet / sensation shuffle
+ *   Micro-déplac.— micro-variations aléatoires imperceptibles mais naturelles
+ *   Ghost Lift   — remontée du volume des ghost notes
+ *
+ * Chaque curseur est indépendant.  Un seul profil de groove peut être
+ * appliqué en base, puis chaque paramètre est affinable.
  */
 
 import { useProjectStore } from "../../store/projectStore";
-import { HUMANIZE_PROFILE_META, getPocketDisplayMs, type HumanizeProfileId, type HumanizeSettings } from "../../playback/humanizeEngine";
+import {
+  HUMANIZE_PROFILE_META,
+  getPocketDisplayMs,
+  type HumanizeProfileId,
+  type HumanizeSettings,
+} from "../../playback/humanizeEngine";
 import { DISPLAY_PIECES } from "../../playback/groovePocketEngine";
 import { DRUM_PIECE_LABELS } from "../../audio/transportController";
 
-// ─── Sub-components ────────────────────────────────────────────────────────────
+// ─── Primitives ───────────────────────────────────────────────────────────────
+
+interface SliderProps {
+  label:      string;
+  value:      number;
+  onChange:   (v: number) => void;
+  min?:       number;
+  max?:       number;
+  step?:      number;
+  unit?:      string;
+  leftLabel?: string;
+  rightLabel?:string;
+  color?:     string;
+  disabled?:  boolean;
+}
 
 const Slider = ({
-  label, value, onChange, min = 0, max = 100, leftLabel, rightLabel,
-}: {
-  label: string;
-  value: number;
-  onChange: (v: number) => void;
-  min?: number;
-  max?: number;
-  leftLabel?: string;
-  rightLabel?: string;
-}) => (
-  <div className="space-y-1">
-    <div className="flex items-center justify-between text-xs">
-      <span className="text-zinc-400">{label}</span>
-      <span className="font-mono text-zinc-300">{value}%</span>
+  label, value, onChange,
+  min = 0, max = 100, step = 1, unit = "%",
+  leftLabel, rightLabel, color = "var(--accent)", disabled = false,
+}: SliderProps) => (
+  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <span style={{ fontSize: 11, color: disabled ? "var(--tx-4)" : "var(--tx-2)" }}>{label}</span>
+      <span style={{
+        fontSize: 11, fontFamily: "monospace", fontWeight: 600,
+        color: disabled ? "var(--tx-4)" : color,
+        minWidth: 36, textAlign: "right",
+      }}>
+        {value}{unit}
+      </span>
     </div>
     {(leftLabel || rightLabel) && (
-      <div className="flex justify-between text-[9px] text-zinc-600">
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "var(--tx-4)" }}>
         <span>{leftLabel}</span>
         <span>{rightLabel}</span>
       </div>
     )}
     <input
       type="range"
-      min={min}
-      max={max}
-      value={value}
+      min={min} max={max} step={step} value={value}
+      disabled={disabled}
       onChange={(e) => onChange(Number(e.target.value))}
-      className="w-full accent-orange-500"
+      style={{ width: "100%", accentColor: disabled ? "var(--tx-4)" : color, cursor: disabled ? "not-allowed" : "pointer" }}
     />
   </div>
 );
 
-// ─── Pocket visualization ──────────────────────────────────────────────────────
-
-const PocketBar = ({ ms, maxMs }: { ms: number; maxMs: number }) => {
-  const pct   = Math.min(Math.abs(ms) / maxMs, 1);
-  const isLate = ms > 0;   // positive = late = behind the beat
-  const color  = isLate ? "#60a5fa" : "#f97316";  // blue = behind, orange = ahead
-
-  return (
-    <div className="relative h-2 w-full bg-zinc-800 rounded-full overflow-hidden">
-      {/* Centre line */}
-      <div className="absolute left-1/2 top-0 h-full w-px bg-zinc-600" />
-      {/* Offset bar */}
+// Barre de niveau colorée (0–100)
+const LevelBar = ({ value, color = "var(--accent)" }: { value: number; color?: string }) => (
+  <div style={{
+    display: "flex", height: 3, gap: 1, overflow: "hidden", borderRadius: 2, marginTop: 2,
+  }}>
+    {Array.from({ length: 20 }, (_, i) => (
       <div
-        className="absolute top-0.5 h-1 rounded-full transition-all duration-200"
+        key={i}
         style={{
-          width:      `${pct * 50}%`,
-          left:       isLate  ? "50%" : `${50 - pct * 50}%`,
-          backgroundColor: color,
+          flex: 1, borderRadius: 1,
+          background: i < Math.round(value / 5) ? color : "var(--bg-4)",
+          opacity: i < Math.round(value / 5) ? (0.5 + i / 30) : 0.3,
+          transition: "background 0.08s",
         }}
       />
-    </div>
-  );
-};
-
-const PocketVisualizer = ({ settings }: { settings: HumanizeSettings }) => {
-  const MAX_DISPLAY_MS = 16;
-
-  return (
-    <div className="space-y-1.5">
-      <div className="flex justify-between text-[9px] text-zinc-600">
-        <span>← Avant</span>
-        <span className="text-zinc-700">Pocket</span>
-        <span>Après →</span>
-      </div>
-      {DISPLAY_PIECES.map((piece) => {
-        const ms = getPocketDisplayMs(settings, piece);
-        return (
-          <div key={piece} className="flex items-center gap-2">
-            <span className="w-8 shrink-0 text-right text-[9px] font-mono text-zinc-500">
-              {DRUM_PIECE_LABELS[piece]}
-            </span>
-            <PocketBar ms={ms} maxMs={MAX_DISPLAY_MS} />
-            <span className="w-10 shrink-0 text-right text-[9px] font-mono text-zinc-600">
-              {ms >= 0 ? "+" : ""}{ms.toFixed(1)}ms
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
-// ─── Profile selector ────────────────────────────────────────────────────────
-
-const PROFILES = Object.values(HUMANIZE_PROFILE_META);
-
-const ProfileSelector = ({
-  active, onChange,
-}: {
-  active: HumanizeProfileId;
-  onChange: (id: HumanizeProfileId) => void;
-}) => (
-  <div className="space-y-1">
-    {PROFILES.map((p) => (
-      <button
-        key={p.id}
-        type="button"
-        onClick={() => onChange(p.id)}
-        className={`w-full rounded-lg border px-2.5 py-1.5 text-left transition ${
-          active === p.id
-            ? "border-orange-500/50 bg-orange-600/15 text-orange-300"
-            : "border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
-        }`}
-      >
-        <p className="text-[11px] font-semibold">{p.name}</p>
-        <p className="text-[9px] opacity-70 mt-0.5 leading-tight">{p.description}</p>
-      </button>
     ))}
   </div>
 );
 
-// ─── Main panel ────────────────────────────────────────────────────────────────
+// Section pliable
+const Section = ({
+  title, children, accent = false,
+}: {
+  title: string; children: React.ReactNode; accent?: boolean;
+}) => (
+  <div style={{
+    borderRadius: 10,
+    padding: "10px 12px",
+    background: accent ? "var(--accent-dim)" : "var(--bg-2)",
+    border: `1px solid ${accent ? "var(--accent-line)" : "var(--sep)"}`,
+    display: "flex", flexDirection: "column", gap: 10,
+  }}>
+    <p style={{
+      fontSize: 9, fontWeight: 700,
+      textTransform: "uppercase" as const, letterSpacing: "0.09em",
+      color: accent ? "var(--accent)" : "var(--tx-4)",
+      margin: 0,
+    }}>
+      {title}
+    </p>
+    {children}
+  </div>
+);
 
-interface HumanizePanelProps {
-  onClose: () => void;
-}
+// ─── Pocket visualizer ────────────────────────────────────────────────────────
+
+const PocketBar = ({ ms, maxMs }: { ms: number; maxMs: number }) => {
+  const pct    = Math.min(Math.abs(ms) / maxMs, 1);
+  const isLate = ms > 0;
+  const color  = isLate ? "var(--accent)" : "var(--c-orange)";
+  return (
+    <div style={{
+      position: "relative", height: 5, width: "100%",
+      background: "var(--bg-4)", borderRadius: 999, overflow: "hidden",
+    }}>
+      <div style={{
+        position: "absolute", top: 1, bottom: 1, borderRadius: 999,
+        background: "var(--sep-2)", left: "calc(50% - 0.5px)", width: 1,
+      }} />
+      <div style={{
+        position: "absolute", top: 1, bottom: 1, borderRadius: 999,
+        width: `${pct * 50}%`,
+        left:   isLate ? "50%" : `${50 - pct * 50}%`,
+        background: color,
+        transition: "width 0.18s, left 0.18s",
+      }} />
+    </div>
+  );
+};
+
+const PocketVisualizer = ({ settings }: { settings: HumanizeSettings }) => (
+  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 8, color: "var(--tx-4)" }}>
+      <span>← En avance</span>
+      <span style={{ color: "var(--tx-3)" }}>Pocket</span>
+      <span>En retard →</span>
+    </div>
+    {DISPLAY_PIECES.map((piece) => {
+      const ms = getPocketDisplayMs(settings, piece);
+      return (
+        <div key={piece} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{
+            width: 28, textAlign: "right", fontSize: 9, fontFamily: "monospace",
+            color: "var(--tx-3)", flexShrink: 0,
+          }}>
+            {DRUM_PIECE_LABELS[piece]}
+          </span>
+          <div style={{ flex: 1 }}>
+            <PocketBar ms={ms} maxMs={16} />
+          </div>
+          <span style={{
+            width: 38, textAlign: "right", fontSize: 9, fontFamily: "monospace",
+            color: Math.abs(ms) > 8 ? "var(--c-orange)" : "var(--tx-4)", flexShrink: 0,
+          }}>
+            {ms >= 0 ? "+" : ""}{ms.toFixed(1)}ms
+          </span>
+        </div>
+      );
+    })}
+  </div>
+);
+
+// ─── Sélecteur de profil ──────────────────────────────────────────────────────
+
+const PROFILES = Object.values(HUMANIZE_PROFILE_META);
+
+const ProfileSelector = ({
+  active, onChange, disabled,
+}: {
+  active: HumanizeProfileId; onChange: (id: HumanizeProfileId) => void; disabled: boolean;
+}) => (
+  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+    {PROFILES.map((p) => {
+      const isActive = active === p.id;
+      return (
+        <button
+          key={p.id}
+          type="button"
+          disabled={disabled}
+          onClick={() => onChange(p.id)}
+          style={{
+            width: "100%", padding: "8px 10px", borderRadius: 8,
+            textAlign: "left", cursor: disabled ? "not-allowed" : "pointer",
+            background: isActive ? "var(--accent-dim)" : "var(--bg-3)",
+            border: `1px solid ${isActive ? "var(--accent-line)" : "var(--sep)"}`,
+            opacity: disabled ? 0.5 : 1,
+            transition: "all 0.12s",
+          }}
+        >
+          <p style={{
+            fontSize: 11, fontWeight: 600, margin: 0,
+            color: isActive ? "var(--accent)" : "var(--tx-2)",
+          }}>
+            {p.name}
+          </p>
+          <p style={{
+            fontSize: 9, margin: "2px 0 0", lineHeight: 1.4,
+            color: "var(--tx-3)",
+          }}>
+            {p.description}
+          </p>
+        </button>
+      );
+    })}
+  </div>
+);
+
+// ─── Panneau principal ────────────────────────────────────────────────────────
+
+interface HumanizePanelProps { onClose: () => void; }
 
 export const HumanizePanel = ({ onClose }: HumanizePanelProps) => {
   const { humanize, setHumanize, project, isPlaying } = useProjectStore();
 
-  return (
-    <div className="flex h-full w-72 flex-col gap-3 overflow-y-auto rounded-xl border border-zinc-800 bg-zinc-950/95 p-3 text-sm shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+  const enabled = humanize.enabled;
+  const amount  = humanize.amount;
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="font-semibold text-zinc-100">Humanize Engine</span>
-          <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold border ${
-            humanize.enabled
-              ? "bg-orange-600/20 text-orange-400 border-orange-500/30"
-              : "bg-zinc-800 text-zinc-500 border-zinc-700"
-          }`}>
-            {humanize.enabled ? "ON" : "OFF"}
+  // Calcule la couleur dynamique en fonction du taux d'humanisation
+  const amountColor = amount < 25 ? "var(--c-green)" : amount < 60 ? "var(--accent)" : amount < 85 ? "var(--c-orange)" : "var(--c-red)";
+  const amountLabel = amount < 10 ? "Machine" : amount < 30 ? "Très précis" : amount < 55 ? "Studio" : amount < 75 ? "Naturel" : amount < 90 ? "Live" : "Hors tempo";
+
+  return (
+    <div style={{
+      width: 284,
+      display: "flex",
+      flexDirection: "column",
+      gap: 8,
+      overflowY: "auto",
+      borderRadius: 14,
+      border: "1px solid var(--sep-2)",
+      background: "var(--bg-2)",
+      padding: 12,
+      boxShadow: "var(--shadow-md)",
+      maxHeight: "100%",
+    }}>
+
+      {/* ── En-tête ── */}
+      <div style={{
+        display: "flex", alignItems: "center",
+        justifyContent: "space-between", flexShrink: 0,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--tx-1)" }}>
+            Humanisation
+          </span>
+          <span style={{
+            padding: "1px 7px", borderRadius: 4, fontSize: 9, fontWeight: 700,
+            background: enabled ? "rgba(255,159,10,0.15)" : "var(--bg-3)",
+            color:      enabled ? "var(--c-orange)"       : "var(--tx-4)",
+            border:     `1px solid ${enabled ? "rgba(255,159,10,0.30)" : "var(--sep)"}`,
+          }}>
+            {enabled ? "ACTIF" : "INACTIF"}
           </span>
         </div>
-        <div className="flex items-center gap-1">
+        <div style={{ display: "flex", gap: 5 }}>
           <button
             type="button"
-            onClick={() => setHumanize({ enabled: !humanize.enabled })}
-            className={`rounded px-2 py-1 text-[10px] font-medium transition border ${
-              humanize.enabled
-                ? "border-orange-500/50 bg-orange-600/20 text-orange-300"
-                : "border-zinc-700 bg-zinc-800 text-zinc-400 hover:text-zinc-200"
-            }`}
+            onClick={() => setHumanize({ enabled: !enabled })}
+            style={{
+              padding: "4px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+              cursor: "pointer",
+              background: enabled ? "rgba(255,159,10,0.15)" : "var(--bg-3)",
+              color:      enabled ? "var(--c-orange)"       : "var(--tx-3)",
+              border:     `1px solid ${enabled ? "rgba(255,159,10,0.30)" : "var(--sep)"}`,
+              transition: "all 0.15s",
+            }}
           >
-            {humanize.enabled ? "Désactiver" : "Activer"}
+            {enabled ? "Désactiver" : "Activer"}
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="rounded px-1.5 py-0.5 text-zinc-500 hover:text-zinc-200 text-xs transition"
+            style={{
+              width: 22, height: 22, borderRadius: 5,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              background: "var(--bg-3)", border: "none",
+              cursor: "pointer", fontSize: 14, color: "var(--tx-3)",
+            }}
           >
             ×
           </button>
         </div>
       </div>
 
-      {/* Live indicator */}
-      {isPlaying && humanize.enabled && (
-        <div className="flex items-center gap-1.5 rounded-md border border-orange-500/20 bg-orange-500/10 px-2 py-1 text-[10px] text-orange-400">
-          <span className="h-1.5 w-1.5 rounded-full bg-orange-400 animate-pulse" />
-          En cours · Changements appliqués en temps réel
+      {/* ── Indicateur de lecture ── */}
+      {isPlaying && enabled && (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 7,
+          padding: "5px 10px", borderRadius: 7,
+          background: "rgba(255,159,10,0.08)",
+          border: "1px solid rgba(255,159,10,0.18)",
+          fontSize: 10, color: "var(--c-orange)",
+        }}>
+          <span className="play-dot" style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--c-orange)" }} />
+          En lecture · Changements en temps réel
         </div>
       )}
 
       {!project && (
-        <p className="text-center text-xs text-zinc-600 py-4">
+        <p style={{ fontSize: 11, color: "var(--tx-3)", textAlign: "center", padding: "16px 0", margin: 0 }}>
           Charge un fichier MIDI pour activer l'humanisation.
         </p>
       )}
 
-      {project && (
-        <>
-          {/* ── Main Robot ←→ Human slider ── */}
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900/60 p-3 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-                Humanisation
-              </span>
-              <span className="font-mono text-lg font-bold text-orange-400">
-                {humanize.amount}%
-              </span>
-            </div>
+      {project && (<>
 
-            <div className="space-y-1">
-              <div className="flex justify-between text-[9px] text-zinc-600">
-                <span>Robot</span>
-                <span>Human</span>
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={humanize.amount}
-                onChange={(e) => setHumanize({ amount: Number(e.target.value) })}
-                className="w-full accent-orange-500"
-              />
-              {/* Visual indicator */}
-              <div className="flex h-1.5 gap-0.5">
-                {Array.from({ length: 20 }, (_, i) => (
-                  <div
-                    key={i}
-                    className="flex-1 rounded-full transition-all duration-100"
-                    style={{
-                      backgroundColor:
-                        i < Math.round(humanize.amount / 5)
-                          ? `hsl(${20 + i * 1.5}, 85%, 55%)`
-                          : "#27272a",
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
+        {/* ── Taux global ── */}
+        <Section title="Taux global" accent={enabled && amount > 0}>
+          <div style={{ textAlign: "center", padding: "2px 0 4px" }}>
+            <span style={{ fontFamily: "monospace", fontSize: 36, fontWeight: 800, color: amountColor }}>
+              {amount}
+            </span>
+            <span style={{ fontSize: 12, color: "var(--tx-4)", marginLeft: 4 }}>%</span>
+            <p style={{ fontSize: 10, color: "var(--tx-3)", margin: "3px 0 0" }}>{amountLabel}</p>
           </div>
+          <Slider
+            label="" value={amount}
+            onChange={(v) => setHumanize({ amount: v })}
+            min={0} max={100}
+            leftLabel="Machine" rightLabel="Hors tempo"
+            color={amountColor}
+            disabled={!enabled}
+          />
+          <LevelBar value={amount} color={amountColor} />
+        </Section>
 
-          {/* ── Profile selector ── */}
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900/60 p-3 space-y-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-              Profil de Groove
+        {/* ── Profil de groove ── */}
+        <Section title="Profil de groove">
+          <ProfileSelector
+            active={humanize.profileId}
+            onChange={(id) => setHumanize({ profileId: id })}
+            disabled={!enabled}
+          />
+        </Section>
+
+        {/* ── Contrôles indépendants ── */}
+        <Section title="Contrôles détaillés">
+
+          <Slider
+            label="Variation de timing"
+            value={humanize.timingAmount}
+            onChange={(v) => setHumanize({ timingAmount: v })}
+            leftLabel="Précis" rightLabel="Flottant"
+            color="var(--accent)"
+            disabled={!enabled}
+          />
+
+          <Slider
+            label="Variation de vélocité"
+            value={humanize.velocityAmount}
+            onChange={(v) => setHumanize({ velocityAmount: v })}
+            leftLabel="Uniforme" rightLabel="Dynamique"
+            color="var(--c-green)"
+            disabled={!enabled}
+          />
+
+          <Slider
+            label="Swing"
+            value={humanize.swingAmount}
+            onChange={(v) => setHumanize({ swingAmount: v })}
+            leftLabel="Droit" rightLabel="Shuffle"
+            color="var(--ia-groove)"
+            disabled={!enabled}
+          />
+
+          <Slider
+            label="Intensité des accents"
+            value={humanize.accentAmount ?? 50}
+            onChange={(v) => setHumanize({ accentAmount: v } as Partial<HumanizeSettings>)}
+            leftLabel="Plat" rightLabel="Marqué"
+            color="var(--c-orange)"
+            disabled={!enabled}
+          />
+
+          <Slider
+            label="Profondeur du groove pocket"
+            value={humanize.pocketDepth ?? 50}
+            onChange={(v) => setHumanize({ pocketDepth: v } as Partial<HumanizeSettings>)}
+            leftLabel="Sur le temps" rightLabel="Profond"
+            color="var(--c-yellow)"
+            disabled={!enabled}
+          />
+
+          <Slider
+            label="Micro-déplacements"
+            value={humanize.microDisplacement ?? 30}
+            onChange={(v) => setHumanize({ microDisplacement: v } as Partial<HumanizeSettings>)}
+            leftLabel="Aucun" rightLabel="Expressif"
+            color="var(--accent)"
+            disabled={!enabled}
+          />
+
+          <Slider
+            label="Remontée des ghost notes"
+            value={humanize.ghostLift ?? 40}
+            onChange={(v) => setHumanize({ ghostLift: v } as Partial<HumanizeSettings>)}
+            leftLabel="Discret" rightLabel="Audible"
+            color="var(--tx-2)"
+            disabled={!enabled}
+          />
+        </Section>
+
+        {/* ── Pocket par instrument ── */}
+        {enabled && amount > 0 && (
+          <Section title="Pocket — décalage par instrument">
+            <PocketVisualizer settings={humanize} />
+            <p style={{ fontSize: 9, color: "var(--tx-4)", margin: 0 }}>
+              Orange = en avance · Bleu accent = en retard
             </p>
-            <ProfileSelector
-              active={humanize.profileId}
-              onChange={(id) => setHumanize({ profileId: id })}
-            />
-          </div>
+          </Section>
+        )}
 
-          {/* ── Sub-sliders ── */}
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900/60 p-3 space-y-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-              Détail
-            </p>
-            <Slider
-              label="Timing"
-              value={humanize.timingAmount}
-              onChange={(v) => setHumanize({ timingAmount: v })}
-              leftLabel="Précis"
-              rightLabel="Relâché"
-            />
-            <Slider
-              label="Vélocité"
-              value={humanize.velocityAmount}
-              onChange={(v) => setHumanize({ velocityAmount: v })}
-              leftLabel="Uniforme"
-              rightLabel="Dynamique"
-            />
-            <Slider
-              label="Swing"
-              value={humanize.swingAmount}
-              onChange={(v) => setHumanize({ swingAmount: v })}
-              leftLabel="Droit"
-              rightLabel="Swing"
-            />
-          </div>
-
-          {/* ── Pocket Visualization ── */}
-          {humanize.amount > 0 && (
-            <div className="rounded-lg border border-zinc-800 bg-zinc-900/60 p-3 space-y-2">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-                Pocket — Timing par instrument
-              </p>
-              <PocketVisualizer settings={humanize} />
-              <p className="text-[9px] text-zinc-700">
-                Bleu = derrière le temps · Orange = en avance
-              </p>
-            </div>
-          )}
-        </>
-      )}
+        {/* ── Réinitialiser ── */}
+        <button
+          type="button"
+          onClick={() => setHumanize({
+            amount: 0, timingAmount: 0, velocityAmount: 0, swingAmount: 0,
+            accentAmount: 50, pocketDepth: 50, microDisplacement: 30, ghostLift: 40,
+          } as Partial<HumanizeSettings>)}
+          style={{
+            width: "100%", padding: "7px 12px", borderRadius: 8,
+            fontSize: 11, fontWeight: 500, cursor: "pointer",
+            background: "var(--bg-1)", color: "var(--tx-3)",
+            border: "1px solid var(--sep)",
+            transition: "all 0.12s",
+          }}
+        >
+          Réinitialiser tous les paramètres
+        </button>
+      </>)}
     </div>
   );
 };

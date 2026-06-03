@@ -4,7 +4,8 @@ import type { DrumPiece } from "../core/types";
 
 export type DrumKitId =
   | "rock" | "metal" | "jazz" | "funk"
-  | "electronic" | "lofi" | "studio" | "vintage";
+  | "electronic" | "lofi" | "studio" | "vintage"
+  | "pop" | "hiphop" | "acoustic" | "reggae" | "punk" | "trap";
 
 export interface DrumKitMixer {
   kickVolume: number;
@@ -301,6 +302,132 @@ export const DRUM_KIT_PRESETS: Record<DrumKitId, DrumKit> = {
       tomHigh: { note: "A3", decayTime: 0.25, pitchDecay: 0.062, octaves: 4.0, velMult: 0.85 },
       tomMid:  { note: "E3", decayTime: 0.34, pitchDecay: 0.062, octaves: 4.0, velMult: 0.85 },
       tomLow:  { note: "B2", decayTime: 0.42, pitchDecay: 0.062, octaves: 4.0, velMult: 0.85 },
+    },
+  },
+
+  pop: {
+    id: "pop", name: "Pop", emoji: "🎤",
+    description: "Son poli et équilibré, snare craquante, kick bien défini — radio-ready",
+    color: "#ec4899", accentColor: "#f472b6",
+    mixer: { kickVolume: 0.86, snareVolume: 0.88, hihatVolume: 0.72, cymbalVolume: 0.70, tomVolume: 0.74, roomAmount: 0.28 },
+    playbackStyle: { velocityCurve: "compressed", humanizeAmount: 0.10, compression: 0.55 },
+    synthParams: {
+      kick:        { pitchDecay: 0.09, octaves: 8.5, decayTime: 0.36, note: "C1", velMult: 0.98 },
+      snare:       { noiseRatio: 0.60, noiseDecay: 0.16, bodyDecay: 0.10, bodyNote: "D2", bodyOctaves: 3.2, velMult: 1.0 },
+      hihatClosed: { freq: 430, decay: 0.050, harmonicity: 5.2, modIdx: 33, resonance: 4100, octaves: 1.6, velMult: 0.42 },
+      hihatOpen:   { freq: 430, decay: 0.46,  harmonicity: 5.2, modIdx: 33, resonance: 4100, octaves: 1.6, velMult: 0.36 },
+      hihatPedal:  { freq: 360, decay: 0.036, harmonicity: 4.6, modIdx: 29, resonance: 3600, octaves: 1.1, velMult: 0.30 },
+      ride:        { freq: 355, decay: 0.88,  harmonicity: 3.2, modIdx: 21, resonance: 3100, octaves: 1.6, velMult: 0.34 },
+      crash:       { freq: 290, decay: 1.85,  harmonicity: 3.2, modIdx: 12, resonance: 3000, octaves: 1.6, velMult: 0.34 },
+      splash:      { freq: 405, decay: 0.36,  harmonicity: 3.6, modIdx: 27, resonance: 3300, octaves: 1.6, velMult: 0.30 },
+      tomHigh: { note: "A3", decayTime: 0.20, pitchDecay: 0.052, octaves: 4.6, velMult: 0.96 },
+      tomMid:  { note: "E3", decayTime: 0.28, pitchDecay: 0.052, octaves: 4.6, velMult: 0.96 },
+      tomLow:  { note: "B2", decayTime: 0.36, pitchDecay: 0.052, octaves: 4.6, velMult: 0.96 },
+    },
+  },
+
+  hiphop: {
+    id: "hiphop", name: "Hip-Hop", emoji: "🎧",
+    description: "808 sub-basse profonde, snare claquante, hi-hat swing 16th",
+    color: "#7c3aed", accentColor: "#8b5cf6",
+    mixer: { kickVolume: 1.0, snareVolume: 0.90, hihatVolume: 0.65, cymbalVolume: 0.50, tomVolume: 0.62, roomAmount: 0.08 },
+    playbackStyle: { velocityCurve: "expanded", humanizeAmount: 0.20, compression: 0.65 },
+    synthParams: {
+      kick:        { pitchDecay: 0.55, octaves: 14, decayTime: 0.70, note: "B-1", velMult: 1.08 },
+      snare:       { noiseRatio: 0.80, noiseDecay: 0.11, bodyDecay: 0.06, bodyNote: "F2", bodyOctaves: 2.2, velMult: 1.02 },
+      hihatClosed: { freq: 550, decay: 0.022, harmonicity: 6.8, modIdx: 44, resonance: 5400, octaves: 2.2, velMult: 0.44 },
+      hihatOpen:   { freq: 550, decay: 0.28,  harmonicity: 6.8, modIdx: 44, resonance: 5400, octaves: 2.2, velMult: 0.38 },
+      hihatPedal:  { freq: 460, decay: 0.016, harmonicity: 6.0, modIdx: 38, resonance: 4800, octaves: 1.8, velMult: 0.34 },
+      ride:        { freq: 460, decay: 0.60,  harmonicity: 4.8, modIdx: 32, resonance: 4400, octaves: 2.2, velMult: 0.28 },
+      crash:       { freq: 360, decay: 1.30,  harmonicity: 5.0, modIdx: 16, resonance: 4200, octaves: 2.2, velMult: 0.28 },
+      splash:      { freq: 500, decay: 0.24,  harmonicity: 5.2, modIdx: 36, resonance: 4600, octaves: 2.2, velMult: 0.26 },
+      tomHigh: { note: "C4", decayTime: 0.16, pitchDecay: 0.038, octaves: 6.5, velMult: 0.88 },
+      tomMid:  { note: "G3", decayTime: 0.24, pitchDecay: 0.038, octaves: 6.5, velMult: 0.88 },
+      tomLow:  { note: "C3", decayTime: 0.34, pitchDecay: 0.038, octaves: 6.5, velMult: 0.88 },
+    },
+  },
+
+  acoustic: {
+    id: "acoustic", name: "Acoustique", emoji: "🥁",
+    description: "Batterie acoustique naturelle, prise en studio, sonorité chaleureuse et ouverte",
+    color: "#92400e", accentColor: "#b45309",
+    mixer: { kickVolume: 0.82, snareVolume: 0.78, hihatVolume: 0.58, cymbalVolume: 0.72, tomVolume: 0.80, roomAmount: 0.70 },
+    playbackStyle: { velocityCurve: "expanded", humanizeAmount: 0.35, compression: 0.15 },
+    synthParams: {
+      kick:        { pitchDecay: 0.11, octaves: 7.5, decayTime: 0.44, note: "D1", velMult: 0.92 },
+      snare:       { noiseRatio: 0.42, noiseDecay: 0.24, bodyDecay: 0.20, bodyNote: "C2", bodyOctaves: 3.5, velMult: 0.88 },
+      hihatClosed: { freq: 370, decay: 0.055, harmonicity: 4.4, modIdx: 27, resonance: 3400, octaves: 1.1, velMult: 0.30 },
+      hihatOpen:   { freq: 370, decay: 0.62,  harmonicity: 4.4, modIdx: 27, resonance: 3400, octaves: 1.1, velMult: 0.26 },
+      hihatPedal:  { freq: 310, decay: 0.040, harmonicity: 3.7, modIdx: 23, resonance: 2800, octaves: 0.8, velMult: 0.22 },
+      ride:        { freq: 330, decay: 1.10,  harmonicity: 2.8, modIdx: 17, resonance: 2600, octaves: 1.1, velMult: 0.38 },
+      crash:       { freq: 262, decay: 2.40,  harmonicity: 2.6, modIdx: 8,  resonance: 2400, octaves: 1.1, velMult: 0.34 },
+      splash:      { freq: 350, decay: 0.55,  harmonicity: 3.0, modIdx: 21, resonance: 2750, octaves: 1.1, velMult: 0.30 },
+      tomHigh: { note: "B3", decayTime: 0.30, pitchDecay: 0.068, octaves: 4.2, velMult: 0.90 },
+      tomMid:  { note: "F3", decayTime: 0.40, pitchDecay: 0.068, octaves: 4.2, velMult: 0.90 },
+      tomLow:  { note: "B2", decayTime: 0.52, pitchDecay: 0.068, octaves: 4.2, velMult: 0.90 },
+    },
+  },
+
+  reggae: {
+    id: "reggae", name: "Reggae", emoji: "🌿",
+    description: "Riddim hypnotique, kick léger, snare sur le 3, hi-hat ouvert caractéristique",
+    color: "#16a34a", accentColor: "#22c55e",
+    mixer: { kickVolume: 0.72, snareVolume: 0.68, hihatVolume: 0.60, cymbalVolume: 0.65, tomVolume: 0.65, roomAmount: 0.55 },
+    playbackStyle: { velocityCurve: "expanded", humanizeAmount: 0.32, compression: 0.12 },
+    synthParams: {
+      kick:        { pitchDecay: 0.07, octaves: 6.0, decayTime: 0.32, note: "D1", velMult: 0.80 },
+      snare:       { noiseRatio: 0.52, noiseDecay: 0.15, bodyDecay: 0.17, bodyNote: "C2", bodyOctaves: 2.9, velMult: 0.76 },
+      hihatClosed: { freq: 365, decay: 0.044, harmonicity: 4.6, modIdx: 26, resonance: 3300, octaves: 1.0, velMult: 0.26 },
+      hihatOpen:   { freq: 365, decay: 0.72,  harmonicity: 4.6, modIdx: 26, resonance: 3300, octaves: 1.0, velMult: 0.28 },
+      hihatPedal:  { freq: 310, decay: 0.034, harmonicity: 3.9, modIdx: 22, resonance: 2850, octaves: 0.8, velMult: 0.22 },
+      ride:        { freq: 335, decay: 0.95,  harmonicity: 2.9, modIdx: 18, resonance: 2700, octaves: 1.1, velMult: 0.32 },
+      crash:       { freq: 255, decay: 2.00,  harmonicity: 2.7, modIdx: 9,  resonance: 2500, octaves: 1.1, velMult: 0.28 },
+      splash:      { freq: 342, decay: 0.48,  harmonicity: 3.1, modIdx: 21, resonance: 2800, octaves: 1.0, velMult: 0.26 },
+      tomHigh: { note: "G3", decayTime: 0.29, pitchDecay: 0.064, octaves: 3.9, velMult: 0.82 },
+      tomMid:  { note: "D3", decayTime: 0.38, pitchDecay: 0.064, octaves: 3.9, velMult: 0.82 },
+      tomLow:  { note: "A2", decayTime: 0.48, pitchDecay: 0.064, octaves: 3.9, velMult: 0.82 },
+    },
+  },
+
+  punk: {
+    id: "punk", name: "Punk", emoji: "⚡",
+    description: "Brut, rapide, sans compromis — kick et snare claquants, hihat en 8ths enragés",
+    color: "#dc2626", accentColor: "#ef4444",
+    mixer: { kickVolume: 0.95, snareVolume: 0.96, hihatVolume: 0.84, cymbalVolume: 0.80, tomVolume: 0.80, roomAmount: 0.20 },
+    playbackStyle: { velocityCurve: "linear", humanizeAmount: 0.06, compression: 0.50 },
+    synthParams: {
+      kick:        { pitchDecay: 0.06, octaves: 7.5, decayTime: 0.26, note: "C1", velMult: 1.05 },
+      snare:       { noiseRatio: 0.68, noiseDecay: 0.14, bodyDecay: 0.09, bodyNote: "E2", bodyOctaves: 2.6, velMult: 1.05 },
+      hihatClosed: { freq: 480, decay: 0.032, harmonicity: 5.8, modIdx: 37, resonance: 4800, octaves: 1.8, velMult: 0.50 },
+      hihatOpen:   { freq: 480, decay: 0.34,  harmonicity: 5.8, modIdx: 37, resonance: 4800, octaves: 1.8, velMult: 0.44 },
+      hihatPedal:  { freq: 400, decay: 0.024, harmonicity: 5.2, modIdx: 32, resonance: 4200, octaves: 1.4, velMult: 0.38 },
+      ride:        { freq: 400, decay: 0.65,  harmonicity: 3.8, modIdx: 25, resonance: 3600, octaves: 1.8, velMult: 0.36 },
+      crash:       { freq: 320, decay: 1.50,  harmonicity: 4.0, modIdx: 13, resonance: 3400, octaves: 1.8, velMult: 0.38 },
+      splash:      { freq: 440, decay: 0.28,  harmonicity: 4.3, modIdx: 28, resonance: 3700, octaves: 1.8, velMult: 0.34 },
+      tomHigh: { note: "B3", decayTime: 0.17, pitchDecay: 0.042, octaves: 5.2, velMult: 1.02 },
+      tomMid:  { note: "F3", decayTime: 0.23, pitchDecay: 0.042, octaves: 5.2, velMult: 1.02 },
+      tomLow:  { note: "C3", decayTime: 0.30, pitchDecay: 0.042, octaves: 5.2, velMult: 1.02 },
+    },
+  },
+
+  trap: {
+    id: "trap", name: "Trap", emoji: "🔫",
+    description: "Hi-hat rapide en triolets, 808 extended, snare sèche — trap moderne",
+    color: "#0f172a", accentColor: "#475569",
+    mixer: { kickVolume: 0.98, snareVolume: 0.85, hihatVolume: 0.70, cymbalVolume: 0.48, tomVolume: 0.58, roomAmount: 0.05 },
+    playbackStyle: { velocityCurve: "compressed", humanizeAmount: 0.05, compression: 0.85 },
+    synthParams: {
+      kick:        { pitchDecay: 0.65, octaves: 15, decayTime: 0.80, note: "A-1", velMult: 1.10 },
+      snare:       { noiseRatio: 0.75, noiseDecay: 0.09, bodyDecay: 0.05, bodyNote: "G2", bodyOctaves: 1.8, velMult: 0.98 },
+      hihatClosed: { freq: 620, decay: 0.012, harmonicity: 7.5, modIdx: 50, resonance: 6000, octaves: 2.8, velMult: 0.46 },
+      hihatOpen:   { freq: 620, decay: 0.16,  harmonicity: 7.5, modIdx: 50, resonance: 6000, octaves: 2.8, velMult: 0.40 },
+      hihatPedal:  { freq: 520, decay: 0.010, harmonicity: 6.8, modIdx: 44, resonance: 5400, octaves: 2.2, velMult: 0.36 },
+      ride:        { freq: 500, decay: 0.42,  harmonicity: 5.5, modIdx: 38, resonance: 4900, octaves: 2.2, velMult: 0.26 },
+      crash:       { freq: 400, decay: 1.10,  harmonicity: 5.5, modIdx: 19, resonance: 4600, octaves: 2.2, velMult: 0.26 },
+      splash:      { freq: 540, decay: 0.18,  harmonicity: 5.8, modIdx: 40, resonance: 5000, octaves: 2.2, velMult: 0.24 },
+      tomHigh: { note: "D4", decayTime: 0.13, pitchDecay: 0.032, octaves: 7.0, velMult: 0.86 },
+      tomMid:  { note: "A3", decayTime: 0.20, pitchDecay: 0.032, octaves: 7.0, velMult: 0.86 },
+      tomLow:  { note: "D3", decayTime: 0.28, pitchDecay: 0.032, octaves: 7.0, velMult: 0.86 },
     },
   },
 };

@@ -50,7 +50,8 @@ export class PlaybackEngine {
   private scheduler: MidiScheduler | null = null;
   private masterGain: Tone.Gain | null = null;
   private clickAccent: Tone.MembraneSynth | null = null;
-  private clickBeat: Tone.MetalSynth | null = null;
+  private clickBeat: Tone.NoiseSynth | null = null;
+  private clickBeatFilter: Tone.Filter | null = null;
   private ctx: AudioContext | null = null;
   private initialized = false;
 
@@ -83,11 +84,11 @@ export class PlaybackEngine {
       envelope: { attack: 0.001, decay: 0.055, sustain: 0 },
     }).connect(this.masterGain);
 
-    this.clickBeat = new Tone.MetalSynth({
-      envelope: { attack: 0.001, decay: 0.035, release: 0.01 },
-      harmonicity: 5.1, modulationIndex: 16, resonance: 3000, octaves: 0.5,
-    }).connect(this.masterGain);
-    this.clickBeat.frequency.value = 600;
+    this.clickBeatFilter = new Tone.Filter({ frequency: 4000, type: "highpass", Q: 1.2 }).connect(this.masterGain);
+    this.clickBeat = new Tone.NoiseSynth({
+      noise: { type: "white" },
+      envelope: { attack: 0.001, decay: 0.035, sustain: 0, release: 0.004 },
+    }).connect(this.clickBeatFilter);
 
     // Apply the currently active drum kit to the fresh scheduler
     const kitVoices = createKitVoices(drumKitManager.activeKit, this.masterGain);
@@ -349,6 +350,14 @@ export class PlaybackEngine {
   }
 
   /**
+   * Swap a single voice for one piece (per-piece sound selection).
+   * If not initialized yet, does nothing (kit voices will be created on play()).
+   */
+  swapSingleVoice(piece: DrumPiece, voice: import("./drumSampler").DrumVoice): void {
+    this.scheduler?.swapSingleVoice(piece, voice);
+  }
+
+  /**
    * Install a velocity post-processor (kit curve + humanize + mixer volume).
    * Called after kit switch or mixer change.
    */
@@ -370,6 +379,7 @@ export class PlaybackEngine {
       this.scheduler?.dispose();
       this.clickAccent?.dispose();
       this.clickBeat?.dispose();
+      this.clickBeatFilter?.dispose();
       this.masterGain?.dispose();
     }
   }

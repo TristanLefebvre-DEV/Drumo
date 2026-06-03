@@ -64,8 +64,10 @@ export class MetronomeEngine {
 
   // ── Sound generators ────────────────────────────────────────────────────────
   private accentHigh: Tone.MembraneSynth | null = null;
-  private beatNormal: Tone.MetalSynth | null = null;
-  private subdivSynth: Tone.MetalSynth | null = null;
+  private beatNormal: Tone.NoiseSynth | null = null;
+  private beatNormalFilter: Tone.Filter | null = null;
+  private subdivSynth: Tone.NoiseSynth | null = null;
+  private subdivSynthFilter: Tone.Filter | null = null;
   private polyBeepSynth: Tone.Synth | null = null;
 
   // ── State ───────────────────────────────────────────────────────────────────
@@ -104,101 +106,92 @@ export class MetronomeEngine {
     this.rebuildSynths();
   }
 
+  private makeNoisePair(
+    decay: number,
+    filterType: "highpass" | "bandpass",
+    filterFreq: number,
+    out: Tone.ToneAudioNode
+  ): { noise: Tone.NoiseSynth; filter: Tone.Filter } {
+    const filter = new Tone.Filter({ frequency: filterFreq, type: filterType, Q: 1.2 }).connect(out);
+    const noise = new Tone.NoiseSynth({
+      noise: { type: "white" },
+      envelope: { attack: 0.001, decay, sustain: 0, release: Math.max(0.005, decay * 0.1) },
+    }).connect(filter);
+    return { noise, filter };
+  }
+
   private rebuildSynths(): void {
     if (!this.masterGain) return;
     this.accentHigh?.dispose();
     this.beatNormal?.dispose();
+    this.beatNormalFilter?.dispose();
     this.subdivSynth?.dispose();
+    this.subdivSynthFilter?.dispose();
     this.polyBeepSynth?.dispose();
 
     const out = this.masterGain;
 
     switch (this._soundType) {
-      case "click":
+      case "click": {
         this.accentHigh = new Tone.MembraneSynth({
           pitchDecay: 0.018, octaves: 3,
           envelope: { attack: 0.001, decay: 0.06, sustain: 0 },
         }).connect(out);
-        this.beatNormal = new Tone.MetalSynth({
-          envelope: { attack: 0.001, decay: 0.04, release: 0.01 },
-          harmonicity: 5.1, modulationIndex: 16, resonance: 3200, octaves: 0.5,
-        }).connect(out);
-        (this.beatNormal as Tone.MetalSynth).frequency.value = 600;
-        this.subdivSynth = new Tone.MetalSynth({
-          envelope: { attack: 0.001, decay: 0.025, release: 0.005 },
-          harmonicity: 5.1, modulationIndex: 12, resonance: 2800, octaves: 0.3,
-        }).connect(out);
-        (this.subdivSynth as Tone.MetalSynth).frequency.value = 900;
+        const b = this.makeNoisePair(0.04, "highpass", 4000, out);
+        this.beatNormal = b.noise; this.beatNormalFilter = b.filter;
+        const s = this.makeNoisePair(0.025, "highpass", 6000, out);
+        this.subdivSynth = s.noise; this.subdivSynthFilter = s.filter;
         break;
+      }
 
-      case "woodblock":
+      case "woodblock": {
         this.accentHigh = new Tone.MembraneSynth({
           pitchDecay: 0.008, octaves: 1.5,
           envelope: { attack: 0.001, decay: 0.05, sustain: 0 },
         }).connect(out);
-        this.beatNormal = new Tone.MetalSynth({
-          envelope: { attack: 0.001, decay: 0.055, release: 0.01 },
-          harmonicity: 6, modulationIndex: 22, resonance: 4000, octaves: 0.8,
-        }).connect(out);
-        (this.beatNormal as Tone.MetalSynth).frequency.value = 750;
-        this.subdivSynth = new Tone.MetalSynth({
-          envelope: { attack: 0.001, decay: 0.030, release: 0.005 },
-          harmonicity: 5, modulationIndex: 18, resonance: 3200, octaves: 0.5,
-        }).connect(out);
-        (this.subdivSynth as Tone.MetalSynth).frequency.value = 1000;
+        const b = this.makeNoisePair(0.055, "bandpass", 3000, out);
+        this.beatNormal = b.noise; this.beatNormalFilter = b.filter;
+        const s = this.makeNoisePair(0.030, "bandpass", 4500, out);
+        this.subdivSynth = s.noise; this.subdivSynthFilter = s.filter;
         break;
+      }
 
-      case "beep":
+      case "beep": {
         this.accentHigh = new Tone.MembraneSynth({
           pitchDecay: 0.001, octaves: 0.5,
           oscillator: { type: "sine" },
           envelope: { attack: 0.001, decay: 0.08, sustain: 0, release: 0.01 },
         }).connect(out);
-        this.beatNormal = new Tone.MetalSynth({
-          envelope: { attack: 0.001, decay: 0.06, release: 0.01 },
-          harmonicity: 1, modulationIndex: 2, resonance: 800, octaves: 0.5,
-        }).connect(out);
-        (this.beatNormal as Tone.MetalSynth).frequency.value = 440;
-        this.subdivSynth = new Tone.MetalSynth({
-          envelope: { attack: 0.001, decay: 0.04, release: 0.005 },
-          harmonicity: 1, modulationIndex: 1, resonance: 600, octaves: 0.3,
-        }).connect(out);
-        (this.subdivSynth as Tone.MetalSynth).frequency.value = 330;
+        const b = this.makeNoisePair(0.06, "highpass", 3000, out);
+        this.beatNormal = b.noise; this.beatNormalFilter = b.filter;
+        const s = this.makeNoisePair(0.04, "highpass", 4500, out);
+        this.subdivSynth = s.noise; this.subdivSynthFilter = s.filter;
         break;
+      }
 
-      case "hihat":
+      case "hihat": {
         this.accentHigh = new Tone.MembraneSynth({
           pitchDecay: 0.01, octaves: 2,
           envelope: { attack: 0.001, decay: 0.09, sustain: 0 },
         }).connect(out);
-        this.beatNormal = new Tone.MetalSynth({
-          envelope: { attack: 0.001, decay: 0.06, release: 0.015 },
-          harmonicity: 5.1, modulationIndex: 32, resonance: 4200, octaves: 1.5,
-        }).connect(out);
-        (this.beatNormal as Tone.MetalSynth).frequency.value = 420;
-        this.subdivSynth = new Tone.MetalSynth({
-          envelope: { attack: 0.001, decay: 0.035, release: 0.008 },
-          harmonicity: 5.1, modulationIndex: 28, resonance: 3800, octaves: 1.2,
-        }).connect(out);
-        (this.subdivSynth as Tone.MetalSynth).frequency.value = 520;
+        const b = this.makeNoisePair(0.06, "highpass", 7000, out);
+        this.beatNormal = b.noise; this.beatNormalFilter = b.filter;
+        const s = this.makeNoisePair(0.035, "highpass", 9000, out);
+        this.subdivSynth = s.noise; this.subdivSynthFilter = s.filter;
         break;
+      }
 
-      case "rimshot":
+      case "rimshot": {
         this.accentHigh = new Tone.MembraneSynth({
           pitchDecay: 0.005, octaves: 2,
           envelope: { attack: 0.001, decay: 0.055, sustain: 0 },
         }).connect(out);
-        this.beatNormal = new Tone.MetalSynth({
-          envelope: { attack: 0.001, decay: 0.045, release: 0.01 },
-          harmonicity: 8, modulationIndex: 20, resonance: 5000, octaves: 0.5,
-        }).connect(out);
-        (this.beatNormal as Tone.MetalSynth).frequency.value = 800;
-        this.subdivSynth = new Tone.MetalSynth({
-          envelope: { attack: 0.001, decay: 0.022, release: 0.005 },
-          harmonicity: 7, modulationIndex: 16, resonance: 4200, octaves: 0.3,
-        }).connect(out);
-        (this.subdivSynth as Tone.MetalSynth).frequency.value = 1100;
+        const b = this.makeNoisePair(0.045, "highpass", 5000, out);
+        this.beatNormal = b.noise; this.beatNormalFilter = b.filter;
+        const s = this.makeNoisePair(0.022, "highpass", 7000, out);
+        this.subdivSynth = s.noise; this.subdivSynthFilter = s.filter;
         break;
+      }
     }
 
     // Polyrhythm cross-beat synth (always the same — a subtle high beep)
@@ -464,7 +457,9 @@ export class MetronomeEngine {
     this.masterGain?.dispose();
     this.accentHigh?.dispose();
     this.beatNormal?.dispose();
+    this.beatNormalFilter?.dispose();
     this.subdivSynth?.dispose();
+    this.subdivSynthFilter?.dispose();
     this.polyBeepSynth?.dispose();
   }
 }

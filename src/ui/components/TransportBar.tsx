@@ -1,8 +1,9 @@
 /**
  * Transport Bar — Logic Pro / Final Cut Pro style
  *
- * Clean, uncluttered transport: play/pause/stop/rewind | BPM | position |
- * speed | loop | metronome.  No color theatrics — just clarity.
+ * App-level transport: play/pause/stop/rewind | position | speed | loop |
+ * metronome | optional mixer strip.
+ * No colour theatrics — clarity first.
  */
 
 import { useState } from "react";
@@ -10,25 +11,26 @@ import { useProjectStore } from "../../store/projectStore";
 import { DRUM_PIECE_LABELS, DRUM_PIECES_ORDERED, formatPosition } from "../../audio/transportController";
 import type { DrumPiece } from "../../core/types";
 
-// ─── Primitive styles ─────────────────────────────────────────────────────────
+// ─── Style helpers ────────────────────────────────────────────────────────────
 
-const iconBtnStyle = (active = false): React.CSSProperties => ({
-  width: 28,
-  height: 28,
+const iconBtn = (active = false, size = 28): React.CSSProperties => ({
+  width: size,
+  height: size,
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
   borderRadius: 6,
-  fontSize: 13,
+  fontSize: 12,
   background: active ? "rgba(255,255,255,0.09)" : "transparent",
   color: active ? "var(--tx-1)" : "var(--tx-3)",
   border: `1px solid ${active ? "rgba(255,255,255,0.12)" : "transparent"}`,
   cursor: "pointer",
   transition: "all 0.12s",
   flexShrink: 0,
+  userSelect: "none" as const,
 });
 
-const pillBtnStyle = (active = false): React.CSSProperties => ({
+const pill = (active = false): React.CSSProperties => ({
   display: "flex",
   alignItems: "center",
   gap: 5,
@@ -42,10 +44,20 @@ const pillBtnStyle = (active = false): React.CSSProperties => ({
   cursor: "pointer",
   transition: "all 0.12s",
   whiteSpace: "nowrap" as const,
+  userSelect: "none" as const,
 });
 
 const Divider = () => (
-  <div style={{ width: 1, height: 16, flexShrink: 0, background: "var(--sep)" }} />
+  <div style={{ width: 1, height: 16, flexShrink: 0, background: "var(--sep)", margin: "0 1px" }} />
+);
+
+// ─── Status dot ───────────────────────────────────────────────────────────────
+
+const StatusDot = ({ color, pulse = false }: { color: string; pulse?: boolean }) => (
+  <span
+    className={pulse ? "play-dot" : undefined}
+    style={{ width: 5, height: 5, borderRadius: "50%", background: color, display: "inline-block", flexShrink: 0 }}
+  />
 );
 
 // ─── Mixer strip ──────────────────────────────────────────────────────────────
@@ -54,9 +66,15 @@ const MixerStrip = ({
   piece, muted, soloed, onMute, onSolo,
 }: { piece: DrumPiece; muted: boolean; soloed: boolean; onMute: () => void; onSolo: () => void }) => (
   <div style={{
-    display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
-    padding: "4px 6px", borderRadius: 5,
-    background: "var(--bg-3)", border: "1px solid var(--sep)",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: 3,
+    padding: "4px 6px",
+    borderRadius: 6,
+    background: "var(--bg-3)",
+    border: "1px solid var(--sep)",
+    flexShrink: 0,
   }}>
     <span style={{ fontSize: 9, fontWeight: 500, color: muted ? "var(--tx-4)" : "var(--tx-3)" }}>
       {DRUM_PIECE_LABELS[piece]}
@@ -96,10 +114,10 @@ export const TransportBar = () => {
 
   const ppq       = project?.ppq         ?? 480;
   const numerator = project?.timeSignature.numerator ?? 4;
-  const bpm       = project?.tempoBpm    ?? 120;
   const position  = formatPosition(activeTick, ppq, numerator);
   const hasSolo   = Object.values(transport.soloState).some(Boolean);
   const speedPct  = Math.round(transport.speed * 100);
+  const hasProject = !!project;
 
   const toggleMute = (piece: DrumPiece) =>
     updateTransport({ muteState: { ...transport.muteState, [piece]: !transport.muteState[piece] } });
@@ -109,74 +127,80 @@ export const TransportBar = () => {
   return (
     <div style={{
       flexShrink: 0,
-      background: "var(--bg-1)",
+      background: "var(--bg-2)",
       borderBottom: "1px solid var(--sep)",
     }}>
       {/* ── Main row ── */}
       <div style={{
         display: "flex",
-        flexWrap: "wrap",
+        flexWrap: "wrap" as const,
         alignItems: "center",
         gap: 6,
-        padding: "5px 10px",
+        padding: "5px 12px",
         minHeight: 38,
       }}>
 
         {/* Playback controls */}
         <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <button type="button" style={iconBtnStyle()} onClick={rewindToStart} title="Début (Home)">
+          <button type="button" style={iconBtn()} onClick={rewindToStart} title="Aller au début (Origine)" disabled={!hasProject}>
             ⏮
           </button>
-          <button type="button" style={iconBtnStyle()} onClick={rewindMeasure} title="Mesure précédente">
+          <button type="button" style={iconBtn()} onClick={rewindMeasure} title="Mesure précédente" disabled={!hasProject}>
             ◂◂
           </button>
 
-          {/* Play / Pause — larger, slightly prominent */}
+          {/* Play / Pause — slightly larger */}
           <button
             type="button"
-            disabled={!project}
+            disabled={!hasProject}
             onClick={() => void (isPlaying ? pause() : play())}
-            title="Play / Pause (Espace)"
+            title="Lecture / Pause (Espace)"
             style={{
-              width: 32, height: 32, borderRadius: 7, display: "flex",
-              alignItems: "center", justifyContent: "center", flexShrink: 0,
-              background: isPlaying ? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.07)",
-              color: "var(--tx-1)", border: "1px solid rgba(255,255,255,0.12)",
-              fontSize: 14, cursor: project ? "pointer" : "not-allowed",
-              opacity: project ? 1 : 0.3, transition: "all 0.12s",
+              width: 34, height: 34, borderRadius: 8,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0,
+              background: isPlaying
+                ? "rgba(48,209,88,0.15)"
+                : "rgba(255,255,255,0.07)",
+              color: isPlaying ? "var(--c-green)" : "var(--tx-1)",
+              border: isPlaying
+                ? "1px solid rgba(48,209,88,0.25)"
+                : "1px solid rgba(255,255,255,0.12)",
+              fontSize: 14,
+              cursor: hasProject ? "pointer" : "not-allowed",
+              opacity: hasProject ? 1 : 0.35,
+              transition: "all 0.15s",
             }}
           >
-            {isPlaying ? "⏸" : isPaused ? "▶" : "▶"}
+            {isPlaying ? "⏸" : "▶"}
           </button>
 
-          <button type="button" style={iconBtnStyle()} onClick={stop} title="Stop (Esc)">⏹</button>
+          <button type="button" style={iconBtn()} onClick={stop} title="Stop (Échap)" disabled={!hasProject}>
+            ⏹
+          </button>
         </div>
 
         <Divider />
 
-        {/* BPM + position */}
+        {/* Position display */}
         <div style={{
           display: "flex", alignItems: "center", gap: 8,
           padding: "3px 10px", borderRadius: 6,
-          background: "var(--bg-2)", border: "1px solid var(--sep)",
+          background: "var(--bg-3)", border: "1px solid var(--sep)",
+          flexShrink: 0,
         }}>
-          <span style={{ fontSize: 10, color: "var(--tx-4)", fontWeight: 500 }}>BPM</span>
-          <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: "var(--tx-1)" }}>{bpm}</span>
-          <span style={{ width: 1, height: 12, background: "var(--sep)", display: "inline-block" }} />
-          <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 600, color: "var(--tx-2)" }}>
+          <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 600, color: "var(--tx-2)", letterSpacing: "0.04em" }}>
             {position}
           </span>
-          {/* Subtle playing indicator */}
-          {isPlaying && (
-            <span className="play-dot" style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--c-green)", display: "inline-block" }} />
-          )}
+          {isPlaying && <StatusDot color="var(--c-green)" pulse />}
+          {isPaused  && <StatusDot color="var(--c-yellow)" />}
         </div>
 
         <Divider />
 
         {/* Speed */}
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <span style={{ fontSize: 10, color: "var(--tx-4)" }}>Vitesse</span>
+          <span style={{ fontSize: 10, color: "var(--tx-4)", userSelect: "none" }}>Vitesse</span>
           <input
             type="range" min={0.25} max={2} step={0.05}
             value={transport.speed}
@@ -184,14 +208,15 @@ export const TransportBar = () => {
             style={{ width: 72, accentColor: "var(--tx-3)" }}
             title="Vitesse de lecture"
           />
-          <span style={{ fontFamily: "monospace", fontSize: 11, color: "var(--tx-2)", width: 30, textAlign: "right" }}>
+          <span style={{ fontFamily: "monospace", fontSize: 11, color: "var(--tx-2)", width: 32, textAlign: "right" }}>
             {speedPct}%
           </span>
           {transport.speed !== 1 && (
             <button
               type="button"
               onClick={() => updateTransport({ speed: 1 })}
-              style={{ fontSize: 10, color: "var(--tx-4)", background: "none", border: "none", cursor: "pointer" }}
+              style={{ fontSize: 10, color: "var(--tx-4)", background: "none", border: "none", cursor: "pointer", padding: "0 2px" }}
+              title="Réinitialiser à 100%"
             >1×</button>
           )}
         </div>
@@ -200,21 +225,26 @@ export const TransportBar = () => {
 
         {/* Loop */}
         <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-          <button type="button" style={pillBtnStyle(transport.loopEnabled)}
+          <button type="button" style={pill(transport.loopEnabled)}
             onClick={() => updateTransport({ loopEnabled: !transport.loopEnabled })}>
-            <span style={{ width: 5, height: 5, borderRadius: "50%",
-              background: transport.loopEnabled ? "var(--c-green)" : "var(--tx-4)" }} />
-            Loop
+            <StatusDot color={transport.loopEnabled ? "var(--c-green)" : "var(--tx-4)"} />
+            Boucle
           </button>
           {transport.loopEnabled && (<>
             <button type="button"
               onClick={() => updateTransport({ loopStartTick: activeTick })}
-              style={{ ...pillBtnStyle(), fontSize: 10 }}
-            >[IN</button>
+              style={{ ...pill(), fontSize: 10 }}
+              title="Marquer le début"
+            >
+              [ENT
+            </button>
             <button type="button"
               onClick={() => updateTransport({ loopEndTick: activeTick })}
-              style={{ ...pillBtnStyle(), fontSize: 10 }}
-            >OUT]</button>
+              style={{ ...pill(), fontSize: 10 }}
+              title="Marquer la fin"
+            >
+              SOR]
+            </button>
           </>)}
         </div>
 
@@ -223,30 +253,30 @@ export const TransportBar = () => {
         {/* Metronome + count-in */}
         <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
           <button type="button"
-            style={pillBtnStyle(transport.metronomeEnabled)}
+            style={pill(transport.metronomeEnabled)}
             onClick={() => updateTransport({ metronomeEnabled: !transport.metronomeEnabled })}>
-            <span style={{ width: 5, height: 5, borderRadius: "50%",
-              background: transport.metronomeEnabled ? "var(--c-yellow)" : "var(--tx-4)" }} />
-            Metro
+            <StatusDot color={transport.metronomeEnabled ? "var(--c-yellow)" : "var(--tx-4)"} />
+            Métro
           </button>
           <button type="button"
-            style={pillBtnStyle(transport.countInBars > 0)}
+            style={pill(transport.countInBars > 0)}
+            title="Count-in bars — click to cycle"
             onClick={() => {
               const cycle = [0, 1, 2, 4] as const;
               const idx = cycle.indexOf(transport.countInBars as 0|1|2|4);
               updateTransport({ countInBars: cycle[(idx + 1) % cycle.length] });
             }}>
-            {transport.countInBars === 0 ? "Count-in" : `${transport.countInBars}m in`}
+            {transport.countInBars === 0 ? "Décompte" : `${transport.countInBars}m av.`}
           </button>
         </div>
 
-        {/* Mixer toggle */}
+        {/* Mixer toggle — pushed to right */}
         <button
           type="button"
           onClick={() => setShowMixer((v) => !v)}
-          style={{ ...pillBtnStyle(showMixer), marginLeft: "auto" }}
+          style={{ ...pill(showMixer), marginLeft: "auto" }}
         >
-          Mixer
+          Mixeur
           {hasSolo && (
             <span style={{
               padding: "0 4px", borderRadius: 4, fontSize: 9, fontWeight: 700,
@@ -260,14 +290,16 @@ export const TransportBar = () => {
       {showMixer && (
         <div style={{
           display: "flex",
-          flexWrap: "wrap",
+          flexWrap: "wrap" as const,
           alignItems: "center",
           gap: 4,
-          padding: "4px 10px 6px",
+          padding: "5px 12px 7px",
           borderTop: "1px solid var(--sep)",
           background: "var(--bg-1)",
         }}>
-          <span style={{ fontSize: 10, color: "var(--tx-4)", marginRight: 2 }}>Instruments</span>
+          <span style={{ fontSize: 10, color: "var(--tx-4)", marginRight: 4, userSelect: "none" }}>
+            Instruments
+          </span>
           {DRUM_PIECES_ORDERED.map((piece) => (
             <MixerStrip
               key={piece} piece={piece}
@@ -284,7 +316,7 @@ export const TransportBar = () => {
                 background: "transparent", color: "var(--tx-3)", border: "1px solid var(--sep)", cursor: "pointer",
               }}
             >
-              Clear all
+              Effacer
             </button>
           )}
         </div>

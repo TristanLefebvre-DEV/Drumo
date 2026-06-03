@@ -1,3 +1,10 @@
+/**
+ * Panneau Métronome — v2
+ *
+ * Design unifié avec le design system (CSS variables, pas de Tailwind zinc).
+ * Interface professionnelle, lisible, animations fluides.
+ */
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   metronomeEngine,
@@ -12,7 +19,7 @@ import {
 } from "../../audio/metronomeEngine";
 import { useProjectStore } from "../../store/projectStore";
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// ─── Constantes ───────────────────────────────────────────────────────────────
 
 const SIGNATURES: { label: string; sig: MetroSignature }[] = [
   { label: "2/4", sig: { numerator: 2, denominator: 4 } },
@@ -24,151 +31,25 @@ const SIGNATURES: { label: string; sig: MetroSignature }[] = [
 ];
 
 const SUBDIVISIONS: { label: string; icon: string; value: MetroSubdivision }[] = [
-  { label: "Noire",    icon: "♩",  value: "quarter"   },
-  { label: "Croche",   icon: "♪♪", value: "eighth"    },
-  { label: "Triolet",  icon: "3",  value: "triplet"   },
-  { label: "Double",   icon: "⊱",  value: "sixteenth" },
+  { label: "Noire",          icon: "♩",  value: "quarter"   },
+  { label: "Croche",         icon: "♪",  value: "eighth"    },
+  { label: "Triolet",        icon: "3",  value: "triplet"   },
+  { label: "Double croche",  icon: "⋮",  value: "sixteenth" },
 ];
 
-const SOUNDS: { label: string; value: MetroSound; emoji: string }[] = [
-  { label: "Click",     value: "click",    emoji: "🔔" },
-  { label: "Woodblock", value: "woodblock",emoji: "🪵" },
-  { label: "Beep",      value: "beep",     emoji: "📡" },
-  { label: "Hi-Hat",    value: "hihat",    emoji: "🥁" },
-  { label: "Rimshot",   value: "rimshot",  emoji: "🎯" },
+const SOUNDS: { label: string; value: MetroSound }[] = [
+  { label: "Click",     value: "click"     },
+  { label: "Bois",      value: "woodblock" },
+  { label: "Bip",       value: "beep"      },
+  { label: "Hi-Hat",    value: "hihat"     },
+  { label: "Rimshot",   value: "rimshot"   },
 ];
 
 const POLY_OPTIONS = [2, 3, 4, 5];
 
 const tapDetector = new TapTempoDetector();
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-const SectionTitle = ({ children, expanded, onToggle }: {
-  children: React.ReactNode;
-  expanded: boolean;
-  onToggle: () => void;
-}) => (
-  <button
-    type="button"
-    onClick={onToggle}
-    className="flex w-full items-center justify-between px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-zinc-500 hover:text-zinc-300 transition"
-  >
-    <span>{children}</span>
-    <span className={`text-[8px] transition-transform ${expanded ? "rotate-180" : ""}`}>▼</span>
-  </button>
-);
-
-const ChipBtn = ({ active, onClick, children, color = "blue" }: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-  color?: "blue" | "amber" | "violet" | "emerald" | "rose";
-}) => {
-  const activeClass: Record<string, string> = {
-    blue:    "border-blue-500/50 bg-blue-600/20 text-blue-300",
-    amber:   "border-amber-500/50 bg-amber-600/20 text-amber-300",
-    violet:  "border-violet-500/50 bg-violet-600/20 text-violet-300",
-    emerald: "border-emerald-500/50 bg-emerald-600/20 text-emerald-300",
-    rose:    "border-rose-500/50 bg-rose-600/20 text-rose-300",
-  };
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded border px-2 py-0.5 text-[10px] font-medium transition ${
-        active
-          ? (activeClass[color] ?? activeClass.blue)
-          : "border-zinc-700 bg-zinc-800/60 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300"
-      }`}
-    >
-      {children}
-    </button>
-  );
-};
-
-// ─── Beat Visualizer ──────────────────────────────────────────────────────────
-
-const BeatVisualizer = ({
-  numerator,
-  beatRefs,
-}: {
-  numerator: number;
-  beatRefs: React.MutableRefObject<(HTMLDivElement | null)[]>;
-}) => (
-  <div className="flex items-center justify-center gap-2 py-2">
-    {Array.from({ length: numerator }, (_, i) => (
-      <div
-        key={i}
-        ref={(el) => { beatRefs.current[i] = el; }}
-        data-beat={i}
-        className="beat-circle h-7 w-7 rounded-full border-2 border-zinc-700 bg-zinc-800 transition-all duration-75"
-        style={{ transform: "scale(1)", opacity: 0.35 }}
-      />
-    ))}
-  </div>
-);
-
-// ─── BPM Display ─────────────────────────────────────────────────────────────
-
-const BpmDisplay = ({
-  bpm,
-  onChange,
-}: {
-  bpm: number;
-  onChange: (bpm: number) => void;
-}) => {
-  const [editing, setEditing] = useState(false);
-  const [inputVal, setInputVal] = useState(String(bpm));
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (!editing) setInputVal(String(bpm));
-  }, [bpm, editing]);
-
-  const commit = () => {
-    const parsed = parseInt(inputVal, 10);
-    if (!isNaN(parsed)) onChange(parsed);
-    setEditing(false);
-  };
-
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    onChange(bpm + (e.deltaY < 0 ? 1 : -1));
-  };
-
-  if (editing) {
-    return (
-      <input
-        ref={inputRef}
-        type="number"
-        min={20} max={300}
-        value={inputVal}
-        onChange={(e) => setInputVal(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditing(false); }}
-        autoFocus
-        className="w-32 bg-transparent text-center font-mono text-6xl font-black tracking-tight text-white outline-none"
-      />
-    );
-  }
-
-  return (
-    <div
-      className="flex cursor-pointer select-none items-baseline justify-center gap-1.5"
-      onClick={() => { setEditing(true); setTimeout(() => inputRef.current?.select(), 10); }}
-      onWheel={handleWheel}
-      title="Cliquer pour éditer · Molette pour ajuster"
-    >
-      <span className="font-mono text-6xl font-black tracking-tight text-white tabular-nums hover:text-blue-100 transition">
-        {bpm}
-      </span>
-      <span className="text-[11px] text-zinc-600 font-medium">BPM</span>
-    </div>
-  );
-};
-
-// ─── Tempo label ──────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function tempoLabel(bpm: number): string {
   if (bpm < 40)  return "Larghissimo";
@@ -183,10 +64,195 @@ function tempoLabel(bpm: number): string {
   return "Prestissimo";
 }
 
-// ─── Main Panel ───────────────────────────────────────────────────────────────
+// ─── Primitives ───────────────────────────────────────────────────────────────
+
+const Chip = ({
+  active, onClick, children, title,
+}: {
+  active: boolean; onClick: () => void;
+  children: React.ReactNode; title?: string;
+}) => (
+  <button
+    type="button"
+    title={title}
+    onClick={onClick}
+    style={{
+      padding: "3px 9px",
+      borderRadius: 6,
+      fontSize: 11,
+      fontWeight: active ? 600 : 400,
+      background: active ? "var(--accent-dim)" : "var(--bg-3)",
+      color:      active ? "var(--accent)"     : "var(--tx-3)",
+      border:     `1px solid ${active ? "var(--accent-line)" : "var(--sep)"}`,
+      cursor: "pointer",
+      transition: "all 0.12s",
+      whiteSpace: "nowrap" as const,
+    }}
+  >
+    {children}
+  </button>
+);
+
+const RowLabel = ({ children }: { children: React.ReactNode }) => (
+  <span style={{
+    fontSize: 9, fontWeight: 600,
+    textTransform: "uppercase" as const, letterSpacing: "0.08em",
+    color: "var(--tx-4)", width: 56, flexShrink: 0,
+  }}>
+    {children}
+  </span>
+);
+
+const SectionTitle = ({
+  children, expanded, onToggle, badge,
+}: {
+  children: React.ReactNode; expanded: boolean;
+  onToggle: () => void; badge?: React.ReactNode;
+}) => (
+  <button
+    type="button"
+    onClick={onToggle}
+    style={{
+      width: "100%", display: "flex", alignItems: "center",
+      justifyContent: "space-between",
+      padding: "8px 14px",
+      background: "transparent", border: "none", cursor: "pointer",
+      fontSize: 10, fontWeight: 600,
+      textTransform: "uppercase" as const, letterSpacing: "0.08em",
+      color: "var(--tx-3)",
+      transition: "color 0.12s",
+    }}
+    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--tx-2)"; }}
+    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--tx-3)"; }}
+  >
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      {children}
+      {badge}
+    </div>
+    <span style={{
+      fontSize: 8, color: "var(--tx-4)",
+      transform: expanded ? "rotate(180deg)" : "none",
+      transition: "transform 0.18s ease",
+      display: "inline-block",
+    }}>▼</span>
+  </button>
+);
+
+const ActiveDot = ({ color = "var(--accent)" }: { color?: string }) => (
+  <span style={{
+    display: "inline-block", width: 6, height: 6,
+    borderRadius: "50%", background: color,
+  }} />
+);
+
+// ─── Visualiseur de battements ────────────────────────────────────────────────
+
+const BeatVisualizer = ({
+  numerator,
+  beatRefs,
+  running,
+}: {
+  numerator: number;
+  beatRefs: React.MutableRefObject<(HTMLDivElement | null)[]>;
+  running: boolean;
+}) => (
+  <div style={{
+    display: "flex", alignItems: "center", justifyContent: "center",
+    gap: 8, padding: "10px 0 6px",
+  }}>
+    {Array.from({ length: numerator }, (_, i) => (
+      <div
+        key={i}
+        ref={(el) => { beatRefs.current[i] = el; }}
+        data-beat={i}
+        style={{
+          width: 28, height: 28,
+          borderRadius: "50%",
+          border: `2px solid var(--sep-2)`,
+          background: "var(--bg-3)",
+          transition: "transform 0.06s ease, box-shadow 0.06s ease, opacity 0.06s ease",
+          transform: "scale(1)",
+          opacity: running ? 0.4 : 0.25,
+        }}
+      />
+    ))}
+  </div>
+);
+
+// ─── Affichage BPM ────────────────────────────────────────────────────────────
+
+const BpmDisplay = ({
+  bpm, onChange, running,
+}: {
+  bpm: number; onChange: (bpm: number) => void; running: boolean;
+}) => {
+  const [editing, setEditing] = useState(false);
+  const [inputVal, setInputVal] = useState(String(bpm));
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!editing) setInputVal(String(bpm));
+  }, [bpm, editing]);
+
+  const commit = () => {
+    const parsed = parseInt(inputVal, 10);
+    if (!isNaN(parsed)) onChange(Math.max(20, Math.min(300, parsed)));
+    setEditing(false);
+  };
+
+  return (
+    <div style={{ textAlign: "center", padding: "4px 0 2px" }}>
+      {editing ? (
+        <input
+          ref={inputRef}
+          type="number"
+          min={20} max={300}
+          value={inputVal}
+          onChange={(e) => setInputVal(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit();
+            if (e.key === "Escape") setEditing(false);
+          }}
+          autoFocus
+          style={{
+            width: 120, background: "transparent",
+            textAlign: "center", fontFamily: "monospace",
+            fontSize: 52, fontWeight: 800, color: "var(--tx-1)",
+            border: "none", outline: "none",
+          }}
+        />
+      ) : (
+        <div
+          style={{ cursor: "pointer", display: "inline-flex", alignItems: "baseline", gap: 6 }}
+          onClick={() => { setEditing(true); setTimeout(() => inputRef.current?.select(), 10); }}
+          onWheel={(e) => { e.preventDefault(); onChange(bpm + (e.deltaY < 0 ? 1 : -1)); }}
+          title="Cliquer pour modifier · Molette pour ajuster"
+        >
+          <span style={{
+            fontFamily: "monospace", fontSize: 56, fontWeight: 800,
+            color: running ? "var(--accent)" : "var(--tx-1)",
+            letterSpacing: "-0.02em",
+            transition: "color 0.3s ease",
+          }}>
+            {bpm}
+          </span>
+          <span style={{ fontSize: 12, color: "var(--tx-4)", fontWeight: 500 }}>BPM</span>
+        </div>
+      )}
+      <p style={{
+        fontSize: 10, color: "var(--tx-3)", margin: "2px 0 0",
+        fontStyle: "italic",
+      }}>
+        {tempoLabel(bpm)}
+      </p>
+    </div>
+  );
+};
+
+// ─── Panneau principal ────────────────────────────────────────────────────────
 
 export const MetronomePanel = ({ onClose }: { onClose?: () => void }) => {
-  // ── State ──────────────────────────────────────────────────────────────────
   const [running, setRunning]           = useState(false);
   const [bpm, setBpmState]              = useState(metronomeEngine.bpm);
   const [sig, setSig]                   = useState<MetroSignature>(metronomeEngine.signature);
@@ -203,71 +269,51 @@ export const MetronomePanel = ({ onClose }: { onClose?: () => void }) => {
   const [showPresets, setShowPresets]   = useState(false);
   const [presetName, setPresetName]     = useState("");
 
-  // ── Refs ───────────────────────────────────────────────────────────────────
-  const beatRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const beatRefs    = useRef<(HTMLDivElement | null)[]>([]);
   const prevBeatRef = useRef(-1);
+  const project     = useProjectStore((s) => s.project);
 
-  // ── Project sync ──────────────────────────────────────────────────────────
-  const project = useProjectStore((s) => s.project);
-
-  // ── Beat callback (direct DOM mutation — no React re-render) ──────────────
-  const handleBeat = useCallback((beatIndex: number, isAccent: boolean, subdivIdx: number, _total: number) => {
-    if (subdivIdx !== 0) return; // only update on main beats for visual
+  // ── Beat callback (DOM direct) ────────────────────────────────────────────
+  const handleBeat = useCallback((beatIndex: number, isAccent: boolean, subdivIdx: number) => {
+    if (subdivIdx !== 0) return;
     const prev = prevBeatRef.current;
-
-    // Reset previous
     const prevEl = beatRefs.current[prev];
     if (prevEl) {
       prevEl.style.transform = "scale(1)";
-      prevEl.style.opacity = "0.35";
-      prevEl.style.borderColor = "#3f3f46"; // zinc-700
-      prevEl.style.backgroundColor = "#27272a"; // zinc-800
+      prevEl.style.opacity = "0.4";
+      prevEl.style.borderColor = "var(--sep-2)";
+      prevEl.style.background = "var(--bg-3)";
       prevEl.style.boxShadow = "none";
     }
-
-    // Activate current
     const el = beatRefs.current[beatIndex];
     if (el) {
-      el.style.transform = "scale(1.25)";
+      el.style.transform = isAccent ? "scale(1.35)" : "scale(1.22)";
       el.style.opacity = "1";
-      if (isAccent) {
-        el.style.borderColor = "#93c5fd"; // blue-300
-        el.style.backgroundColor = "#1d4ed8"; // blue-700
-        el.style.boxShadow = "0 0 14px 4px rgba(59,130,246,0.5)";
-      } else {
-        el.style.borderColor = "#a1a1aa"; // zinc-400
-        el.style.backgroundColor = "#52525b"; // zinc-600
-        el.style.boxShadow = "0 0 8px 2px rgba(161,161,170,0.25)";
-      }
-      // Decay animation
+      el.style.borderColor = isAccent ? "var(--accent)" : "var(--tx-2)";
+      el.style.background   = isAccent ? "var(--accent-dim)" : "var(--bg-4)";
+      el.style.boxShadow = isAccent
+        ? "0 0 16px 4px var(--accent-dim)"
+        : "0 0 8px 2px rgba(255,255,255,0.08)";
       setTimeout(() => {
         if (el) {
           el.style.transform = "scale(1)";
           el.style.opacity = "0.5";
           el.style.boxShadow = "none";
         }
-      }, 120);
+      }, 130);
     }
-
     prevBeatRef.current = beatIndex;
   }, []);
 
-  // ── BPM change from engine (training mode) ────────────────────────────────
-  const handleBpmChange = useCallback((newBpm: number) => {
-    setBpmState(newBpm);
-  }, []);
+  const handleBpmChange = useCallback((newBpm: number) => setBpmState(newBpm), []);
 
-  // ── Setup engine callbacks ─────────────────────────────────────────────────
   useEffect(() => {
     metronomeEngine.onBeat(handleBeat);
     metronomeEngine.onBpmChange(handleBpmChange);
     metronomeEngine.onStop(() => setRunning(false));
-    return () => {
-      metronomeEngine.onBeat(null as unknown as Parameters<typeof metronomeEngine.onBeat>[0]);
-    };
+    return () => metronomeEngine.onBeat(null as unknown as Parameters<typeof metronomeEngine.onBeat>[0]);
   }, [handleBeat, handleBpmChange]);
 
-  // ── Keyboard shortcuts ────────────────────────────────────────────────────
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
@@ -278,19 +324,18 @@ export const MetronomePanel = ({ onClose }: { onClose?: () => void }) => {
     return () => window.removeEventListener("keydown", handler);
   }, [running, bpm]);
 
-  // ─── Actions ───────────────────────────────────────────────────────────────
+  // ─── Actions ──────────────────────────────────────────────────────────────
 
   const togglePlay = async () => {
     if (running) {
       metronomeEngine.stop();
       setRunning(false);
-      // Reset all beat circles
       beatRefs.current.forEach((el) => {
         if (el) {
           el.style.transform = "scale(1)";
-          el.style.opacity = "0.35";
-          el.style.borderColor = "#3f3f46";
-          el.style.backgroundColor = "#27272a";
+          el.style.opacity = "0.25";
+          el.style.borderColor = "var(--sep-2)";
+          el.style.background = "var(--bg-3)";
           el.style.boxShadow = "none";
         }
       });
@@ -304,13 +349,8 @@ export const MetronomePanel = ({ onClose }: { onClose?: () => void }) => {
   const handleTap = () => {
     const detected = tapDetector.tap();
     setTapCount(tapDetector.tapCount);
-    if (detected) {
-      setBpm(detected);
-    }
-    // Clear tap count after 3 seconds of no tapping
-    setTimeout(() => {
-      if (tapDetector.tapCount === 0) setTapCount(0);
-    }, 3100);
+    if (detected) setBpm(detected);
+    setTimeout(() => { if (tapDetector.tapCount === 0) setTapCount(0); }, 3100);
   };
 
   const setBpm = (val: number) => {
@@ -325,25 +365,10 @@ export const MetronomePanel = ({ onClose }: { onClose?: () => void }) => {
     prevBeatRef.current = -1;
   };
 
-  const setSubdivAndApply = (s: MetroSubdivision) => {
-    setSubdivision(s);
-    metronomeEngine.setSubdivision(s);
-  };
-
-  const setSoundAndApply = (s: MetroSound) => {
-    setSoundType(s);
-    metronomeEngine.setSoundType(s);
-  };
-
-  const setVolumeAndApply = (v: number) => {
-    setVolume(v);
-    metronomeEngine.setVolume(v);
-  };
-
-  const setVisualOnlyAndApply = (v: boolean) => {
-    setVisualOnly(v);
-    metronomeEngine.setVisualOnly(v);
-  };
+  const setSubdivAndApply = (s: MetroSubdivision) => { setSubdivision(s); metronomeEngine.setSubdivision(s); };
+  const setSoundAndApply  = (s: MetroSound)       => { setSoundType(s);   metronomeEngine.setSoundType(s);   };
+  const setVolumeAndApply = (v: number)            => { setVolume(v);      metronomeEngine.setVolume(v);      };
+  const setVisualOnlyApply = (v: boolean)          => { setVisualOnly(v);  metronomeEngine.setVisualOnly(v);  };
 
   const setTrainingField = (patch: Partial<typeof training>) => {
     const next = { ...training, ...patch };
@@ -357,9 +382,7 @@ export const MetronomePanel = ({ onClose }: { onClose?: () => void }) => {
     metronomeEngine.setPoly(next);
   };
 
-  const syncFromProject = () => {
-    if (project) setBpm(Math.round(project.tempoBpm));
-  };
+  const syncFromProject = () => { if (project) setBpm(Math.round(project.tempoBpm)); };
 
   const handleSavePreset = () => {
     if (!presetName.trim()) return;
@@ -380,35 +403,69 @@ export const MetronomePanel = ({ onClose }: { onClose?: () => void }) => {
     setPresets(loadMetroPresets());
   };
 
-  // ─── Render ────────────────────────────────────────────────────────────────
+  // ─── Render ───────────────────────────────────────────────────────────────
+
+  const panelBorder: React.CSSProperties = {
+    borderTop: "1px solid var(--sep)",
+  };
 
   return (
-    <div
-      className="flex w-72 flex-col rounded-xl border border-zinc-700/80 bg-zinc-900/98 shadow-2xl shadow-black/70 backdrop-blur-sm"
-      style={{ minHeight: 440 }}
-    >
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between border-b border-zinc-800 px-3 py-2">
-        <div className="flex items-center gap-2">
-          <span className={`h-2 w-2 rounded-full transition ${running ? "bg-blue-400 animate-pulse" : "bg-zinc-600"}`} />
-          <span className="text-[11px] font-semibold text-zinc-300">Métronome</span>
+    <div style={{
+      width: 284,
+      display: "flex",
+      flexDirection: "column",
+      borderRadius: 14,
+      border: "1px solid var(--sep-2)",
+      background: "var(--bg-2)",
+      boxShadow: "var(--shadow-md)",
+      overflow: "hidden",
+      minHeight: 460,
+    }}>
+
+      {/* ── En-tête ── */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "10px 14px",
+        borderBottom: "1px solid var(--sep)",
+        background: "var(--bg-1)",
+        flexShrink: 0,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{
+            width: 8, height: 8, borderRadius: "50%",
+            background: running ? "var(--accent)" : "var(--tx-4)",
+            transition: "background 0.3s ease",
+            boxShadow: running ? "0 0 8px var(--accent)" : "none",
+          }} className={running ? "play-dot" : undefined} />
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--tx-1)" }}>Métronome</span>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           {project && (
             <button
               type="button"
               onClick={syncFromProject}
               title="Synchroniser le BPM depuis le projet"
-              className="rounded px-1.5 py-0.5 text-[9px] text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800 transition uppercase tracking-wide"
+              style={{
+                fontSize: 9, padding: "2px 7px", borderRadius: 5,
+                background: "transparent", border: "1px solid var(--sep)",
+                color: "var(--tx-3)", cursor: "pointer",
+                textTransform: "uppercase" as const, letterSpacing: "0.06em",
+                transition: "all 0.12s",
+              }}
             >
-              Sync {Math.round(project.tempoBpm)} BPM
+              Sync {Math.round(project.tempoBpm)}
             </button>
           )}
           {onClose && (
             <button
               type="button"
               onClick={onClose}
-              className="flex h-4 w-4 items-center justify-center rounded text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800 transition"
+              style={{
+                width: 22, height: 22, borderRadius: 6,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: "var(--bg-3)", border: "none", cursor: "pointer",
+                fontSize: 13, color: "var(--tx-3)", transition: "all 0.12s",
+              }}
             >
               ×
             </button>
@@ -416,213 +473,230 @@ export const MetronomePanel = ({ onClose }: { onClose?: () => void }) => {
         </div>
       </div>
 
-      {/* ── Beat visualizer ── */}
-      <div className="border-b border-zinc-800/60 bg-zinc-950/30 px-3">
-        <BeatVisualizer numerator={sig.numerator} beatRefs={beatRefs} />
-        <div className="pb-1 text-center">
-          <span className="text-[9px] text-zinc-600 italic">{tempoLabel(bpm)}</span>
-        </div>
+      {/* ── Visualiseur de battements ── */}
+      <div style={{
+        padding: "0 14px",
+        borderBottom: "1px solid var(--sep)",
+        background: "var(--bg-1)",
+        flexShrink: 0,
+      }}>
+        <BeatVisualizer numerator={sig.numerator} beatRefs={beatRefs} running={running} />
       </div>
 
-      {/* ── BPM section ── */}
-      <div className="px-3 py-3">
-        <BpmDisplay bpm={bpm} onChange={setBpm} />
+      {/* ── Affichage BPM ── */}
+      <div style={{ padding: "8px 14px 4px", flexShrink: 0 }}>
+        <BpmDisplay bpm={bpm} onChange={setBpm} running={running} />
 
-        {/* BPM adjust buttons */}
-        <div className="mt-2 flex items-center justify-center gap-1">
+        {/* Boutons ±BPM */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "center",
+          gap: 4, marginTop: 6, marginBottom: 4,
+        }}>
           {[-10, -5, -1].map((d) => (
             <button
-              key={d}
-              type="button"
+              key={d} type="button"
               onClick={() => setBpm(bpm + d)}
-              className="rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-[10px] text-zinc-400 hover:border-zinc-600 hover:text-zinc-200 transition"
-            >
-              {d}
-            </button>
+              style={{
+                padding: "3px 8px", borderRadius: 6,
+                fontSize: 10, cursor: "pointer",
+                background: "var(--bg-3)", color: "var(--tx-3)",
+                border: "1px solid var(--sep)",
+                transition: "all 0.1s",
+              }}
+            >{d}</button>
           ))}
-          <div className="w-2" />
-          {[+1, +5, +10].map((d) => (
+          <div style={{ width: 8 }} />
+          {[1, 5, 10].map((d) => (
             <button
-              key={d}
-              type="button"
+              key={d} type="button"
               onClick={() => setBpm(bpm + d)}
-              className="rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-[10px] text-zinc-400 hover:border-zinc-600 hover:text-zinc-200 transition"
-            >
-              +{d}
-            </button>
+              style={{
+                padding: "3px 8px", borderRadius: 6,
+                fontSize: 10, cursor: "pointer",
+                background: "var(--bg-3)", color: "var(--tx-3)",
+                border: "1px solid var(--sep)",
+                transition: "all 0.1s",
+              }}
+            >+{d}</button>
           ))}
         </div>
 
-        {/* BPM slider */}
-        <div className="mt-2 flex items-center gap-2">
-          <span className="text-[9px] text-zinc-700 tabular-nums w-6">20</span>
+        {/* Slider BPM */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+          <span style={{ fontSize: 9, color: "var(--tx-4)", width: 20 }}>20</span>
           <input
-            type="range" min={20} max={300} step={1}
-            value={bpm}
+            type="range" min={20} max={300} step={1} value={bpm}
             onChange={(e) => setBpm(Number(e.target.value))}
-            className="flex-1 accent-blue-500"
+            style={{ flex: 1, accentColor: "var(--accent)" }}
           />
-          <span className="text-[9px] text-zinc-700 tabular-nums w-7 text-right">300</span>
+          <span style={{ fontSize: 9, color: "var(--tx-4)", width: 24, textAlign: "right" }}>300</span>
         </div>
       </div>
 
-      {/* ── Main controls ── */}
-      <div className="flex items-center gap-2 border-t border-zinc-800/60 px-3 py-2.5">
-        {/* Play / Stop */}
+      {/* ── Démarrer / Tap ── */}
+      <div style={{
+        display: "flex", gap: 8, padding: "8px 14px",
+        ...panelBorder, flexShrink: 0,
+      }}>
         <button
           type="button"
           onClick={() => void togglePlay()}
-          className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-[11px] font-bold transition ${
-            running
-              ? "border-blue-500/50 bg-blue-600/20 text-blue-300 hover:bg-blue-600/30"
-              : "border-zinc-600 bg-zinc-700 text-zinc-100 hover:bg-zinc-600"
-          }`}
+          style={{
+            flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+            gap: 6, padding: "9px 12px", borderRadius: 9,
+            fontSize: 12, fontWeight: 700, cursor: "pointer",
+            background: running ? "var(--accent-dim)" : "var(--bg-3)",
+            color:      running ? "var(--accent)"     : "var(--tx-1)",
+            border:     `1px solid ${running ? "var(--accent-line)" : "var(--sep-2)"}`,
+            transition: "all 0.15s",
+          }}
         >
-          {running ? "⏹ Stop" : "▶ Start"}
-          <span className="text-[9px] text-zinc-500 font-normal">[Space]</span>
+          {running ? "⏹ Stop" : "▶ Démarrer"}
+          <span style={{ fontSize: 9, color: "var(--tx-4)", fontWeight: 400 }}>[Espace]</span>
         </button>
 
-        {/* Tap Tempo */}
         <button
           type="button"
           onClick={handleTap}
-          className="flex items-center gap-1 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-[11px] text-zinc-300 hover:border-zinc-500 hover:bg-zinc-700 transition active:scale-95"
           title="Tap tempo [T]"
-          style={{ transition: "transform 0.05s, background 0.1s" }}
+          style={{
+            display: "flex", alignItems: "center", gap: 5,
+            padding: "9px 14px", borderRadius: 9,
+            fontSize: 11, fontWeight: 600, cursor: "pointer",
+            background: "var(--bg-3)", color: "var(--tx-2)",
+            border: "1px solid var(--sep-2)",
+            transition: "transform 0.05s, background 0.1s",
+            userSelect: "none" as const,
+          }}
+          onMouseDown={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(0.95)"; }}
+          onMouseUp={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; }}
         >
-          ✋ Tap
+          Tap
           {tapCount > 0 && (
-            <span className="text-[9px] text-blue-400 font-mono">{tapCount}</span>
+            <span style={{ fontFamily: "monospace", fontSize: 10, color: "var(--accent)" }}>
+              {tapCount}
+            </span>
           )}
         </button>
       </div>
 
-      {/* ── Signature + Subdivision ── */}
-      <div className="border-t border-zinc-800/60 px-3 py-2 space-y-2">
-        {/* Time signature */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[9px] text-zinc-600 w-12 shrink-0">Mesure</span>
+      {/* ── Mesure + Subdivision ── */}
+      <div style={{ padding: "10px 14px", ...panelBorder, flexShrink: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" as const }}>
+          <RowLabel>Mesure</RowLabel>
           {SIGNATURES.map(({ label, sig: s }) => (
-            <ChipBtn
+            <Chip
               key={label}
               active={sig.numerator === s.numerator && sig.denominator === s.denominator}
               onClick={() => setSigAndApply(s)}
             >
               {label}
-            </ChipBtn>
+            </Chip>
           ))}
         </div>
 
-        {/* Subdivision */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[9px] text-zinc-600 w-12 shrink-0">Subdiv</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" as const }}>
+          <RowLabel>Subdiv</RowLabel>
           {SUBDIVISIONS.map(({ label, icon, value }) => (
-            <ChipBtn
+            <Chip
               key={value}
               active={subdivision === value}
               onClick={() => setSubdivAndApply(value)}
-              color="violet"
+              title={label}
             >
-              <span title={label}>{icon}</span>
-            </ChipBtn>
+              {icon}
+            </Chip>
           ))}
         </div>
       </div>
 
-      {/* ── Sound + Volume ── */}
-      <div className="border-t border-zinc-800/60 px-3 py-2 space-y-2">
-        {/* Sound type */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[9px] text-zinc-600 w-12 shrink-0">Son</span>
-          {SOUNDS.map(({ label, value, emoji }) => (
-            <ChipBtn
+      {/* ── Son + Volume ── */}
+      <div style={{ padding: "10px 14px", ...panelBorder, flexShrink: 0, display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" as const }}>
+          <RowLabel>Son</RowLabel>
+          {SOUNDS.map(({ label, value }) => (
+            <Chip
               key={value}
               active={soundType === value}
               onClick={() => setSoundAndApply(value)}
-              color="emerald"
             >
-              <span title={label}>{emoji}</span>
-            </ChipBtn>
+              {label}
+            </Chip>
           ))}
         </div>
 
-        {/* Volume */}
-        <div className="flex items-center gap-2">
-          <span className="text-[9px] text-zinc-600 w-12 shrink-0">Volume</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <RowLabel>Volume</RowLabel>
           <input
             type="range" min={0} max={1} step={0.02}
             value={volume}
             onChange={(e) => setVolumeAndApply(Number(e.target.value))}
-            className="flex-1 accent-emerald-500"
+            style={{ flex: 1, accentColor: "var(--accent)" }}
           />
-          <span className="w-7 text-right font-mono text-[9px] text-zinc-500 tabular-nums">
+          <span style={{ fontSize: 10, color: "var(--tx-3)", fontFamily: "monospace", width: 34, textAlign: "right" }}>
             {Math.round(volume * 100)}%
           </span>
           <button
             type="button"
-            onClick={() => setVisualOnlyAndApply(!visualOnly)}
-            title="Mode visuel uniquement (silencieux)"
-            className={`rounded px-1.5 py-0.5 text-[9px] transition border ${
-              visualOnly
-                ? "border-amber-500/50 bg-amber-600/20 text-amber-300"
-                : "border-zinc-700 text-zinc-600 hover:text-zinc-300"
-            }`}
+            onClick={() => setVisualOnlyApply(!visualOnly)}
+            title="Visuel uniquement (silencieux)"
+            style={{
+              padding: "2px 7px", borderRadius: 5, fontSize: 9,
+              cursor: "pointer",
+              background: visualOnly ? "var(--accent-dim)" : "var(--bg-3)",
+              color:      visualOnly ? "var(--accent)"     : "var(--tx-4)",
+              border:     `1px solid ${visualOnly ? "var(--accent-line)" : "var(--sep)"}`,
+              transition: "all 0.12s",
+            }}
           >
-            {visualOnly ? "👁 Vis" : "🔈"}
+            👁
           </button>
         </div>
       </div>
 
-      {/* ── Training Mode ── */}
-      <div className="border-t border-zinc-800/60">
-        <SectionTitle expanded={showTraining} onToggle={() => setShowTraining((v) => !v)}>
-          🎯 Training Mode
-          {training.enabled && <span className="ml-1 text-blue-400">●</span>}
+      {/* ── Mode entraînement ── */}
+      <div style={{ ...panelBorder }}>
+        <SectionTitle
+          expanded={showTraining}
+          onToggle={() => setShowTraining((v) => !v)}
+          badge={training.enabled ? <ActiveDot /> : null}
+        >
+          Entraînement progressif
         </SectionTitle>
         {showTraining && (
-          <div className="px-3 pb-3 space-y-2">
-            <div className="flex items-center gap-2">
+          <div style={{ padding: "4px 14px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
               <input
                 type="checkbox"
-                id="training-enabled"
                 checked={training.enabled}
                 onChange={(e) => setTrainingField({ enabled: e.target.checked })}
-                className="accent-blue-500"
+                style={{ accentColor: "var(--accent)", width: 13, height: 13 }}
               />
-              <label htmlFor="training-enabled" className="text-[10px] text-zinc-300 cursor-pointer">
-                Accélération progressive
-              </label>
-            </div>
+              <span style={{ fontSize: 11, color: "var(--tx-2)" }}>Accélération automatique</span>
+            </label>
             {training.enabled && (
-              <div className="space-y-2 pl-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-[9px] text-zinc-500 w-20 shrink-0">Cible BPM</span>
-                  <input
-                    type="number" min={20} max={300}
-                    value={training.targetBpm}
-                    onChange={(e) => setTrainingField({ targetBpm: Number(e.target.value) })}
-                    className="w-16 rounded border border-zinc-700 bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-200 text-center"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[9px] text-zinc-500 w-20 shrink-0">+BPM / step</span>
-                  <input
-                    type="number" min={1} max={20}
-                    value={training.stepBpm}
-                    onChange={(e) => setTrainingField({ stepBpm: Number(e.target.value) })}
-                    className="w-16 rounded border border-zinc-700 bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-200 text-center"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[9px] text-zinc-500 w-20 shrink-0">Toutes N mesures</span>
-                  <input
-                    type="number" min={1} max={32}
-                    value={training.stepMeasures}
-                    onChange={(e) => setTrainingField({ stepMeasures: Number(e.target.value) })}
-                    className="w-16 rounded border border-zinc-700 bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-200 text-center"
-                  />
-                </div>
-                <p className="text-[9px] text-zinc-600 italic">
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingLeft: 4 }}>
+                {[
+                  { label: "BPM cible", key: "targetBpm" as const, min: 20, max: 300 },
+                  { label: "+BPM / palier", key: "stepBpm"  as const, min: 1,  max: 20  },
+                  { label: "Mesures / palier", key: "stepMeasures" as const, min: 1, max: 32 },
+                ].map(({ label, key, min, max }) => (
+                  <div key={key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: 10, color: "var(--tx-3)" }}>{label}</span>
+                    <input
+                      type="number" min={min} max={max}
+                      value={training[key]}
+                      onChange={(e) => setTrainingField({ [key]: Number(e.target.value) })}
+                      style={{
+                        width: 60, textAlign: "center",
+                        borderRadius: 6, padding: "3px 6px",
+                        background: "var(--bg-3)", color: "var(--tx-1)",
+                        border: "1px solid var(--sep)", fontSize: 11,
+                      }}
+                    />
+                  </div>
+                ))}
+                <p style={{ fontSize: 10, color: "var(--tx-4)", fontStyle: "italic", margin: 0 }}>
                   {bpm} → {training.targetBpm} BPM, +{training.stepBpm} toutes {training.stepMeasures} mesures
                 </p>
               </div>
@@ -631,99 +705,127 @@ export const MetronomePanel = ({ onClose }: { onClose?: () => void }) => {
         )}
       </div>
 
-      {/* ── Polyrhythm ── */}
-      <div className="border-t border-zinc-800/60">
-        <SectionTitle expanded={showPoly} onToggle={() => setShowPoly((v) => !v)}>
-          ⬡ Polyrythmie
-          {poly.enabled && <span className="ml-1 text-violet-400">●</span>}
+      {/* ── Polyrythmie ── */}
+      <div style={{ ...panelBorder }}>
+        <SectionTitle
+          expanded={showPoly}
+          onToggle={() => setShowPoly((v) => !v)}
+          badge={poly.enabled ? <ActiveDot color="var(--ia-groove)" /> : null}
+        >
+          Polyrythmie
         </SectionTitle>
         {showPoly && (
-          <div className="px-3 pb-3 space-y-2">
-            <div className="flex items-center gap-2">
+          <div style={{ padding: "4px 14px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
               <input
                 type="checkbox"
-                id="poly-enabled"
                 checked={poly.enabled}
                 onChange={(e) => setPolyField({ enabled: e.target.checked })}
-                className="accent-violet-500"
+                style={{ accentColor: "var(--ia-groove)", width: 13, height: 13 }}
               />
-              <label htmlFor="poly-enabled" className="text-[10px] text-zinc-300 cursor-pointer">
-                Rythme croisé actif
-              </label>
-            </div>
+              <span style={{ fontSize: 11, color: "var(--tx-2)" }}>Rythme croisé actif</span>
+            </label>
             {poly.enabled && (
-              <div className="flex items-center gap-2 pl-1">
-                <span className="text-[9px] text-zinc-500">Contre</span>
-                <div className="flex gap-1">
-                  {POLY_OPTIONS.map((n) => (
-                    <ChipBtn key={n} active={poly.against === n} onClick={() => setPolyField({ against: n })} color="violet">
-                      {n}
-                    </ChipBtn>
-                  ))}
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 10, color: "var(--tx-3)" }}>Contre</span>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    {POLY_OPTIONS.map((n) => (
+                      <Chip key={n} active={poly.against === n} onClick={() => setPolyField({ against: n })}>
+                        {n}
+                      </Chip>
+                    ))}
+                  </div>
+                  <span style={{ fontSize: 10, color: "var(--tx-4)" }}>sur {sig.numerator}</span>
                 </div>
-                <span className="text-[9px] text-zinc-600">contre {sig.numerator}</span>
-              </div>
-            )}
-            {poly.enabled && (
-              <p className="text-[9px] text-zinc-600 italic pl-1">
-                {poly.against} temps (↑ aigu) sur {sig.numerator}/{sig.denominator}
-              </p>
+                <p style={{ fontSize: 10, color: "var(--tx-4)", fontStyle: "italic", margin: 0 }}>
+                  {poly.against} pulsations (aigu) contre {sig.numerator}/{sig.denominator}
+                </p>
+              </>
             )}
           </div>
         )}
       </div>
 
       {/* ── Presets ── */}
-      <div className="border-t border-zinc-800/60">
-        <SectionTitle expanded={showPresets} onToggle={() => setShowPresets((v) => !v)}>
-          💾 Presets ({presets.length})
+      <div style={{ ...panelBorder }}>
+        <SectionTitle
+          expanded={showPresets}
+          onToggle={() => setShowPresets((v) => !v)}
+        >
+          Presets ({presets.length})
         </SectionTitle>
         {showPresets && (
-          <div className="px-3 pb-3 space-y-2">
-            {/* Save */}
-            <div className="flex gap-1.5">
+          <div style={{ padding: "4px 14px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ display: "flex", gap: 6 }}>
               <input
                 type="text"
-                placeholder="Nom du preset..."
+                placeholder="Nom du preset…"
                 value={presetName}
                 onChange={(e) => setPresetName(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") handleSavePreset(); }}
-                className="flex-1 rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-[10px] text-zinc-200 placeholder-zinc-600"
+                style={{
+                  flex: 1, padding: "5px 8px", borderRadius: 6,
+                  background: "var(--bg-3)", color: "var(--tx-1)",
+                  border: "1px solid var(--sep)",
+                  fontSize: 11,
+                }}
               />
               <button
                 type="button"
                 onClick={handleSavePreset}
                 disabled={!presetName.trim()}
-                className="rounded border border-zinc-700 bg-zinc-800 px-2 py-1 text-[10px] text-zinc-400 hover:text-zinc-200 disabled:opacity-40 transition"
+                style={{
+                  padding: "5px 10px", borderRadius: 6, fontSize: 11,
+                  cursor: presetName.trim() ? "pointer" : "not-allowed",
+                  background: "var(--bg-3)", color: "var(--tx-2)",
+                  border: "1px solid var(--sep)",
+                  opacity: presetName.trim() ? 1 : 0.4,
+                  transition: "opacity 0.12s",
+                }}
               >
                 Sauver
               </button>
             </div>
 
-            {/* Preset list */}
             {presets.length === 0 ? (
-              <p className="text-[9px] text-zinc-700 text-center italic">Aucun preset sauvegardé</p>
+              <p style={{ fontSize: 10, color: "var(--tx-4)", textAlign: "center", fontStyle: "italic", margin: 0 }}>
+                Aucun preset sauvegardé
+              </p>
             ) : (
-              <div className="space-y-1 max-h-32 overflow-y-auto">
+              <div style={{ maxHeight: 120, overflowY: "auto", display: "flex", flexDirection: "column", gap: 4 }}>
                 {presets.map((preset) => (
                   <div
                     key={preset.id}
-                    className="flex items-center gap-1.5 rounded border border-zinc-800 bg-zinc-900/60 px-2 py-1 group"
+                    style={{
+                      display: "flex", alignItems: "center", gap: 6,
+                      padding: "5px 8px", borderRadius: 6,
+                      background: "var(--bg-3)", border: "1px solid var(--sep)",
+                    }}
                   >
                     <button
                       type="button"
                       onClick={() => handleLoadPreset(preset)}
-                      className="flex-1 text-left text-[10px] text-zinc-300 hover:text-white transition"
+                      style={{
+                        flex: 1, textAlign: "left", background: "none", border: "none",
+                        cursor: "pointer", fontSize: 11, color: "var(--tx-2)",
+                      }}
                     >
-                      <span className="font-medium">{preset.name}</span>
-                      <span className="ml-1.5 text-zinc-600">
-                        {preset.bpm}bpm · {preset.signature.numerator}/{preset.signature.denominator}
+                      <span style={{ fontWeight: 600, color: "var(--tx-1)" }}>{preset.name}</span>
+                      <span style={{ marginLeft: 8, fontSize: 10, color: "var(--tx-4)", fontFamily: "monospace" }}>
+                        {preset.bpm} BPM · {preset.signature.numerator}/{preset.signature.denominator}
                       </span>
                     </button>
                     <button
                       type="button"
                       onClick={() => handleDeletePreset(preset.id)}
-                      className="text-zinc-700 hover:text-rose-400 transition opacity-0 group-hover:opacity-100 text-[10px]"
+                      style={{
+                        background: "none", border: "none", cursor: "pointer",
+                        fontSize: 13, color: "var(--tx-4)", padding: "0 2px",
+                        transition: "color 0.12s",
+                      }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--c-red)"; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--tx-4)"; }}
                     >
                       ×
                     </button>
@@ -735,10 +837,16 @@ export const MetronomePanel = ({ onClose }: { onClose?: () => void }) => {
         )}
       </div>
 
-      {/* ── Footer ── */}
-      <div className="mt-auto border-t border-zinc-800 px-3 py-1.5">
-        <p className="text-center text-[9px] text-zinc-700">
-          Espace = Start/Stop · T = Tap · Molette sur BPM
+      {/* ── Pied de page ── */}
+      <div style={{
+        marginTop: "auto",
+        padding: "8px 14px",
+        borderTop: "1px solid var(--sep)",
+        background: "var(--bg-1)",
+        flexShrink: 0,
+      }}>
+        <p style={{ fontSize: 9, color: "var(--tx-4)", textAlign: "center", margin: 0 }}>
+          Espace = Démarrer/Stop · T = Tap · Molette sur le BPM
         </p>
       </div>
     </div>

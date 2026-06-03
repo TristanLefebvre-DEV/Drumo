@@ -39,25 +39,37 @@ export type HumanizeProfileId =
   | "vintage-human";
 
 export interface HumanizeSettings {
-  enabled:        boolean;
-  profileId:      HumanizeProfileId;
+  enabled:           boolean;
+  profileId:         HumanizeProfileId;
   /** Main slider: 0 (Robot) → 100 (Human) */
-  amount:         number;
+  amount:            number;
   /** Sub-slider: how much timing deviates (0–100) */
-  timingAmount:   number;
+  timingAmount:      number;
   /** Sub-slider: how much velocity deviates (0–100) */
-  velocityAmount: number;
+  velocityAmount:    number;
   /** Swing amount (0–100, 0=straight, 100=full triplet swing) */
-  swingAmount:    number;
+  swingAmount:       number;
+  /** Accent strength on strong beats (0–100) */
+  accentAmount:      number;
+  /** Groove pocket depth — how far behind/ahead the pocket sits (0–100) */
+  pocketDepth:       number;
+  /** Micro-displacement of individual hits (0–100) */
+  microDisplacement: number;
+  /** Ghost note level lift (0–100) */
+  ghostLift:         number;
 }
 
 export const DEFAULT_HUMANIZE: HumanizeSettings = {
-  enabled:        false,
-  profileId:      "tight-studio",
-  amount:         60,
-  timingAmount:   75,
-  velocityAmount: 60,
-  swingAmount:    0,
+  enabled:           false,
+  profileId:         "tight-studio",
+  amount:            60,
+  timingAmount:      75,
+  velocityAmount:    60,
+  swingAmount:       0,
+  accentAmount:      50,
+  pocketDepth:       50,
+  microDisplacement: 30,
+  ghostLift:         40,
 };
 
 // ─── Profile metadata ─────────────────────────────────────────────────────────

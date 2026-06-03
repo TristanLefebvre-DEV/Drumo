@@ -13,7 +13,10 @@ import type { DrumCoreOutput } from "../ai/drum-core/types";
 import { getIsolationMuteState } from "../audio/grooveIsolation";
 import { drumKitManager, DRUM_KIT_PRESETS, DEFAULT_KIT_ID, PIECE_TO_MIXER_CHANNEL } from "../audio/drumKitManager";
 import { buildHumanizeProcessors, DEFAULT_HUMANIZE, type HumanizeSettings } from "../playback/humanizeEngine";
-import { createKitVoices } from "../audio/drumKitSampler";
+import { createKitVoices, buildVoiceFromVariant } from "../audio/drumKitSampler";
+import { getVariantById } from "../audio/drumPieceLibrary";
+import { buildSampleVoice } from "../audio/sampleKitEngine";
+import { sampleKitStore } from "./sampleKitStore";
 import { customKitLoader } from "../audio/customKitLoader";
 import type { DrumKit, DrumKitId, DrumKitMixer } from "../audio/drumKitManager";
 import type { KitRecommendationResult } from "../audio/drumKitRecommendationEngine";
@@ -98,6 +101,15 @@ interface ProjectStore {
   kitRecommendation: KitRecommendationResult | null;
   kitFavorites: string[];
 
+  /** Sons personnalisés pièce par pièce : pieceName → variantId */
+  customPieceSounds: Partial<Record<string, string>>;
+  /** Fichiers audio personnalisés pièce par pièce : pieceName → { path, name } */
+  samplePieceFiles: Partial<Record<string, { path: string; name: string }>>;
+  /** ID du kit personnalisé actuellement chargé (null si aucun) */
+  activeSampleKitId: string | null;
+  /** ID du kit en cours de chargement (null si aucun) */
+  loadingKitId: string | null;
+
   setDrumKit: (id: DrumKitId) => void;
   patchDrumMixer: (patch: Partial<DrumKitMixer>) => void;
   resetDrumMixer: () => void;
@@ -106,6 +118,18 @@ interface ProjectStore {
   setShowDrumMixer: (v: boolean) => void;
   setKitRecommendation: (r: KitRecommendationResult | null) => void;
   toggleKitFavorite: (kitId: string) => void;
+  /** Sélectionner une variante de son pour une pièce — change le son en temps réel */
+  setCustomPieceSound: (pieceName: string, variantId: string | null) => void;
+  /** Assigner un fichier audio à une pièce — charge et swipe la voix en temps réel */
+  setCustomPieceSample: (pieceName: string, filePath: string, fileName: string) => Promise<void>;
+  /** Supprimer l'assignation personnalisée d'une pièce (retour au kit de base) */
+  clearCustomPiece: (pieceName: string) => void;
+  /** Réinitialiser tous les sons personnalisés (retour aux sons du kit actif) */
+  resetCustomPieceSounds: () => void;
+  /** Charger un kit personnalisé sauvegardé — async */
+  loadSampleKit: (kitId: string) => Promise<void>;
+  /** Décharger le kit personnalisé actif */
+  unloadSampleKit: () => void;
 
   moveHit: (hitId: string, deltaTicks: number) => void;
   removeHit: (hitId: string) => void;
@@ -182,6 +206,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
     dicOutput: null,
     message: "Glisse un MIDI batterie ou clique Import MIDI.",
 
+    customPieceSounds: {},
+    samplePieceFiles: {},
+    activeSampleKitId: null,
+    loadingKitId: null,
     activeDrumKitId: DEFAULT_KIT_ID,
     activeDrumKit: DRUM_KIT_PRESETS[DEFAULT_KIT_ID],
     drumMixer: { ...DRUM_KIT_PRESETS[DEFAULT_KIT_ID].mixer },
@@ -274,6 +302,144 @@ export const useProjectStore = create<ProjectStore>((set, get) => {
     toggleKitFavorite: (kitId) => {
       customKitLoader.toggleFavorite(kitId);
       set({ kitFavorites: customKitLoader.getFavoriteIds() });
+    },
+
+    setCustomPieceSound: (pieceName, variantId) => {
+      const output = playbackEngine.masterOutput;
+      if (output && variantId) {
+        const variant = getVariantById(variantId);
+        if (variant) {
+          const voice = buildVoiceFromVariant(variant, output);
+          playbackEngine.swapSingleVoice(pieceName as import("../core/types").DrumPiece, voice);
+        }
+      } else if (output && !variantId) {
+        // Revenir au son du kit actif pour cette pièce
+        const kit = get().activeDrumKit;
+        const allVoices = createKitVoices(kit, output);
+        const voice = allVoices.get(pieceName as import("../core/types").DrumPiece);
+        if (voice) {
+          playbackEngine.swapSingleVoice(pieceName as import("../core/types").DrumPiece, voice);
+          // Disposer les autres voix créées pour ce rebuild temporaire
+          for (const [p, v] of allVoices) {
+            if (p !== pieceName) setTimeout(() => { try { v.dispose(); } catch { /**/ } }, 50);
+          }
+        }
+      }
+      set((state) => ({
+        customPieceSounds: {
+          ...state.customPieceSounds,
+          [pieceName]: variantId ?? undefined,
+        },
+      }));
+    },
+
+    resetCustomPieceSounds: () => {
+      const output = playbackEngine.masterOutput;
+      if (output) {
+        const kit = get().activeDrumKit;
+        const voices = createKitVoices(kit, output);
+        playbackEngine.swapKitVoices(voices);
+      }
+      set({ customPieceSounds: {}, samplePieceFiles: {}, activeSampleKitId: null });
+    },
+
+    setCustomPieceSample: async (pieceName, filePath, fileName) => {
+      const output = playbackEngine.masterOutput;
+      if (!output) return;
+      try {
+        const voice = await buildSampleVoice(filePath, output);
+        playbackEngine.swapSingleVoice(pieceName as import("../core/types").DrumPiece, voice);
+        set((state) => ({
+          samplePieceFiles: { ...state.samplePieceFiles, [pieceName]: { path: filePath, name: fileName } },
+          // Enlever toute variante synth sur cette pièce
+          customPieceSounds: { ...state.customPieceSounds, [pieceName]: undefined },
+          activeSampleKitId: null,  // kit personnalisé modifié → plus de lien avec un kit sauvegardé
+        }));
+      } catch (err) {
+        console.error("[sampleKit] Impossible de charger le fichier :", filePath, err);
+      }
+    },
+
+    clearCustomPiece: (pieceName) => {
+      const output = playbackEngine.masterOutput;
+      if (output) {
+        const kit = get().activeDrumKit;
+        const voices = createKitVoices(kit, output);
+        const voice  = voices.get(pieceName as import("../core/types").DrumPiece);
+        if (voice) {
+          playbackEngine.swapSingleVoice(pieceName as import("../core/types").DrumPiece, voice);
+          for (const [p, v] of voices) {
+            if (p !== pieceName) setTimeout(() => { try { v.dispose(); } catch { /**/ } }, 50);
+          }
+        }
+      }
+      set((state) => ({
+        customPieceSounds: { ...state.customPieceSounds, [pieceName]: undefined },
+        samplePieceFiles:  { ...state.samplePieceFiles,  [pieceName]: undefined },
+        activeSampleKitId: null,
+      }));
+    },
+
+    loadSampleKit: async (kitId) => {
+      const kit = sampleKitStore.get(kitId);
+      if (!kit) return;
+      const output = playbackEngine.masterOutput;
+      if (!output) return;
+
+      set({ loadingKitId: kitId });
+
+      // 1. Charger les voix de base du kit synth
+      const baseKit = DRUM_KIT_PRESETS[kit.baseKitId as DrumKitId];
+      if (baseKit) {
+        const baseVoices = createKitVoices(baseKit, output);
+        playbackEngine.swapKitVoices(baseVoices);
+      }
+
+      // 2. Appliquer les assignations personnalisées pièce par pièce
+      const newCustom: Partial<Record<string, string>> = {};
+      const newSamples: Partial<Record<string, { path: string; name: string }>> = {};
+      const loadErrors: string[] = [];
+
+      for (const [pieceName, assignment] of Object.entries(kit.pieces)) {
+        if (!assignment) continue;
+        if (assignment.type === "sample") {
+          try {
+            const voice = await buildSampleVoice(assignment.filePath, output);
+            playbackEngine.swapSingleVoice(pieceName as import("../core/types").DrumPiece, voice);
+            newSamples[pieceName] = { path: assignment.filePath, name: assignment.fileName };
+          } catch {
+            loadErrors.push(pieceName);
+          }
+        } else if (assignment.type === "variant") {
+          const variant = getVariantById(assignment.variantId);
+          if (variant) {
+            const voice = buildVoiceFromVariant(variant, output);
+            playbackEngine.swapSingleVoice(pieceName as import("../core/types").DrumPiece, voice);
+            newCustom[pieceName] = assignment.variantId;
+          }
+        }
+      }
+
+      set({
+        loadingKitId: null,
+        activeSampleKitId: kitId,
+        customPieceSounds: newCustom,
+        samplePieceFiles: newSamples,
+      });
+
+      if (loadErrors.length > 0) {
+        console.warn("[sampleKit] Fichiers introuvables pour :", loadErrors.join(", "));
+      }
+    },
+
+    unloadSampleKit: () => {
+      const output = playbackEngine.masterOutput;
+      if (output) {
+        const kit = get().activeDrumKit;
+        const voices = createKitVoices(kit, output);
+        playbackEngine.swapKitVoices(voices);
+      }
+      set({ customPieceSounds: {}, samplePieceFiles: {}, activeSampleKitId: null });
     },
 
     loadMidi: (payload) => {

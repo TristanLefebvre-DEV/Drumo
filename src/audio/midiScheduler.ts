@@ -136,6 +136,18 @@ export class MidiScheduler {
     }, 250);
   }
 
+  /**
+   * Swap a single voice for one drum piece — sans toucher aux autres.
+   * Utilisé pour la sélection de son pièce par pièce.
+   */
+  swapSingleVoice(piece: DrumPiece, newVoice: DrumVoice): void {
+    const oldVoice = this.voices.get(piece);
+    this.voices.set(piece, newVoice);
+    if (oldVoice) {
+      setTimeout(() => { try { oldVoice.dispose(); } catch { /* ignore */ } }, 250);
+    }
+  }
+
   // ─── Mixer volume control ─────────────────────────────────────────────────────
 
   /**

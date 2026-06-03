@@ -1,12 +1,9 @@
 /**
- * Compose Page
+ * Compose Page — v2
  *
- * The primary creative workspace. Design philosophy: Logic Pro / Final Cut Pro —
- * every pixel serves the music, not the interface.
- *
- *   • Single compact toolbar row (no colored active states, just opacity)
- *   • Right side panels appear as minimal drawers
- *   • Inspector always visible, always clean
+ * Primary creative workspace. Transport bar is now at app-shell level.
+ * Toolbar is reorganised into labelled groups with consistent spacing.
+ * Right inspector is always visible; optional panels slide in beside it.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -16,7 +13,6 @@ import { DrummerView }       from "../components/DrummerView";
 import { DrumAnimationView } from "../components/DrumAnimationView";
 import { DrummerVisualizer } from "../components/DrummerVisualizer";
 import { HeatmapControls }   from "../components/HeatmapControls";
-import { TransportBar }      from "../components/TransportBar";
 import { AiPanel }           from "../components/AiPanel";
 import { KitBalancePanel }   from "../components/KitBalancePanel";
 import { SectionTimeline }   from "../components/SectionTimeline";
@@ -32,9 +28,9 @@ import { LIMB_COLOR, computeLimbStats, crossoverCount, avgConfidence } from "../
 import { summarizePlayability } from "../../analysis/playabilityEngine";
 import type { QuantizeGrid }    from "../../core/types";
 
-// ─── Minimal button primitives ────────────────────────────────────────────────
+// ─── Toolbar primitives ───────────────────────────────────────────────────────
 
-/** A compact toolbar button.  active = white-bg highlight only, never coloured. */
+/** Compact toolbar button — active state is white-bg only, never coloured. */
 const Btn = ({
   active = false,
   onClick,
@@ -70,23 +66,44 @@ const Btn = ({
       }`,
       cursor: "pointer",
       transition: "background 0.12s, color 0.12s, border-color 0.12s",
-      whiteSpace: "nowrap",
+      whiteSpace: "nowrap" as const,
     }}
   >
     {children}
   </button>
 );
 
+/** Thin vertical separator in toolbar. */
 const Sep = () => (
-  <div style={{ width: 1, height: 14, flexShrink: 0, background: "var(--sep)" }} />
+  <div style={{ width: 1, height: 14, flexShrink: 0, background: "var(--sep)", margin: "0 2px" }} />
+);
+
+/** Tiny uppercase group label. */
+const GroupLabel = ({ children }: { children: React.ReactNode }) => (
+  <span style={{
+    fontSize: 9,
+    fontWeight: 600,
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.08em",
+    color: "var(--tx-4)",
+    userSelect: "none",
+    flexShrink: 0,
+  }}>
+    {children}
+  </span>
 );
 
 // ─── View mode switcher ───────────────────────────────────────────────────────
 
 type ViewMode = "score" | "grid" | "drummer" | "animation" | "body";
-const VIEW_LABELS: Record<ViewMode, string> = {
-  score: "Score", grid: "Grid", drummer: "Drummer", animation: "Anim", body: "Body",
-};
+
+const VIEW_CONFIG: { id: ViewMode; label: string }[] = [
+  { id: "score",     label: "Partition" },
+  { id: "grid",      label: "Grille"   },
+  { id: "drummer",   label: "Batteur"  },
+  { id: "animation", label: "Anim"     },
+  { id: "body",      label: "Corps"    },
+];
 
 const ViewSwitcher = ({ value, onChange }: { value: ViewMode; onChange: (v: ViewMode) => void }) => (
   <div style={{
@@ -95,31 +112,32 @@ const ViewSwitcher = ({ value, onChange }: { value: ViewMode; onChange: (v: View
     borderRadius: 7,
     padding: 2,
     gap: 1,
+    flexShrink: 0,
   }}>
-    {(["score","grid","drummer","animation","body"] as ViewMode[]).map((v) => (
+    {VIEW_CONFIG.map(({ id, label }) => (
       <button
-        key={v}
+        key={id}
         type="button"
-        onClick={() => onChange(v)}
+        onClick={() => onChange(id)}
         style={{
           padding: "3px 10px",
           borderRadius: 5,
           fontSize: 11,
-          fontWeight: value === v ? 600 : 400,
-          background:   value === v ? "rgba(255,255,255,0.08)" : "transparent",
-          color:        value === v ? "var(--tx-1)" : "var(--tx-3)",
-          border:       value === v ? "1px solid rgba(255,255,255,0.10)" : "1px solid transparent",
+          fontWeight: value === id ? 600 : 400,
+          background:   value === id ? "rgba(255,255,255,0.08)" : "transparent",
+          color:        value === id ? "var(--tx-1)" : "var(--tx-3)",
+          border:       value === id ? "1px solid rgba(255,255,255,0.10)" : "1px solid transparent",
           cursor: "pointer",
           transition: "all 0.12s",
         }}
       >
-        {VIEW_LABELS[v]}
+        {label}
       </button>
     ))}
   </div>
 );
 
-// ─── Limb legend (clean, minimal) ─────────────────────────────────────────────
+// ─── Limb legend ──────────────────────────────────────────────────────────────
 
 const LimbLegend = ({
   limbMap, limbMode, onModeChange,
@@ -131,12 +149,12 @@ const LimbLegend = ({
   const stats  = computeLimbStats(limbMap);
   const xovers = crossoverCount(limbMap);
   const conf   = avgConfidence(limbMap);
-  const LABELS = { RH: "R.Hand", LH: "L.Hand", RF: "R.Foot", LF: "L.Foot" } as const;
+  const LABELS = { RH: "M.Droite", LH: "M.Gauche", RF: "P.Droit", LF: "P.Gauche" } as const;
 
   return (
     <div style={{
       display: "flex",
-      flexWrap: "wrap",
+      flexWrap: "wrap" as const,
       alignItems: "center",
       gap: 10,
       padding: "6px 12px",
@@ -144,6 +162,7 @@ const LimbLegend = ({
       borderRadius: 8,
       fontSize: 11,
       border: "1px solid var(--sep)",
+      flexShrink: 0,
     }}>
       {(["RH","LH","RF","LF"] as const).map((l) => (
         <div key={l} style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -159,14 +178,14 @@ const LimbLegend = ({
           }}>{stats[l]}</span>
         </div>
       ))}
-      <div style={{ width: 1, height: 14, background: "var(--sep)" }} />
+      <Sep />
       <span style={{ color: "var(--tx-3)" }}>
-        Crois. <span style={{ fontFamily: "monospace", color: "var(--c-yellow)" }}>{xovers}</span>
+        Croisements <span style={{ fontFamily: "monospace", color: "var(--c-yellow)" }}>{xovers}</span>
       </span>
       <span style={{ color: "var(--tx-3)" }}>
         Conf. <span style={{ fontFamily: "monospace", color: "var(--c-green)" }}>{Math.round(conf * 100)}%</span>
       </span>
-      <div style={{ width: 1, height: 14, background: "var(--sep)" }} />
+      <Sep />
       {(["strict","human","advanced"] as const).map((m) => (
         <button key={m} type="button" onClick={() => onModeChange(m)}
           style={{
@@ -183,51 +202,48 @@ const LimbLegend = ({
   );
 };
 
-// ─── Panel wrapper ────────────────────────────────────────────────────────────
-
-const PanelDrawer = ({ children }: { children: React.ReactNode }) => (
-  <div className="slide-in-right" style={{ flexShrink: 0 }}>{children}</div>
-);
-
 // ─── Empty state ──────────────────────────────────────────────────────────────
 
 const EmptyState = ({ onImport, onNew }: { onImport: () => void; onNew: () => void }) => (
   <div style={{ display: "flex", height: "100%", alignItems: "center", justifyContent: "center" }}>
-    <div style={{ textAlign: "center", maxWidth: 320 }}>
+    <div style={{ textAlign: "center", maxWidth: 340 }}>
       <div style={{
-        width: 56, height: 56, borderRadius: 16, margin: "0 auto 16px",
+        width: 64, height: 64, borderRadius: 18, margin: "0 auto 20px",
         display: "flex", alignItems: "center", justifyContent: "center",
         background: "var(--bg-3)", border: "1px solid var(--sep)",
       }}>
-        <svg width="24" height="24" viewBox="0 0 36 30" fill="none" opacity="0.4">
+        <svg width="28" height="24" viewBox="0 0 36 30" fill="none" opacity="0.35">
           <circle cx="18" cy="19" r="9" stroke="var(--tx-2)" strokeWidth="2" fill="none"/>
           <circle cx="18" cy="19" r="5" stroke="var(--tx-2)" strokeWidth="1.2" fill="none"/>
           <ellipse cx="9" cy="13" rx="4.5" ry="2.2" stroke="var(--tx-2)" strokeWidth="1.8" fill="none"/>
+          <ellipse cx="27" cy="3.5" rx="4" ry="1.3" stroke="var(--tx-2)" strokeWidth="1.5" fill="none"/>
+          <line x1="18" y1="10" x2="27" y2="4" stroke="var(--tx-2)" strokeWidth="1.8" strokeLinecap="round"/>
+          <line x1="18" y1="10" x2="9"  y2="4" stroke="var(--tx-2)" strokeWidth="1.8" strokeLinecap="round"/>
         </svg>
       </div>
-      <p style={{ fontSize: 14, fontWeight: 600, color: "var(--tx-1)", margin: "0 0 6px" }}>
+      <p style={{ fontSize: 15, fontWeight: 600, color: "var(--tx-1)", margin: "0 0 8px" }}>
         Prêt à composer
       </p>
-      <p style={{ fontSize: 12, color: "var(--tx-3)", margin: "0 0 20px" }}>
-        Dépose un fichier MIDI ici, ou importe depuis le menu ci-dessus.
+      <p style={{ fontSize: 12, color: "var(--tx-3)", margin: "0 0 24px", lineHeight: 1.6 }}>
+        Déposez un fichier MIDI ici, ou importez depuis la barre supérieure.
       </p>
       <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
         <button
           type="button"
           onClick={onImport}
           style={{
-            padding: "8px 18px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer",
+            padding: "9px 20px", borderRadius: 9, fontSize: 12, fontWeight: 600, cursor: "pointer",
             background: "rgba(255,255,255,0.09)", color: "var(--tx-1)",
             border: "1px solid rgba(255,255,255,0.14)", transition: "background 0.12s",
           }}
         >
-          Import MIDI
+          Importer MIDI
         </button>
         <button
           type="button"
           onClick={onNew}
           style={{
-            padding: "8px 18px", borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: "pointer",
+            padding: "9px 20px", borderRadius: 9, fontSize: 12, fontWeight: 500, cursor: "pointer",
             background: "transparent", color: "var(--tx-3)",
             border: "1px solid var(--sep)", transition: "background 0.12s",
           }}
@@ -239,6 +255,28 @@ const EmptyState = ({ onImport, onNew }: { onImport: () => void; onNew: () => vo
   </div>
 );
 
+// ─── Inspector stat cell ──────────────────────────────────────────────────────
+
+const StatCell = ({ label, value }: { label: string; value: string | number }) => (
+  <div style={{
+    padding: "7px 8px",
+    borderRadius: 7,
+    background: "var(--bg-2)",
+    border: "1px solid var(--sep)",
+  }}>
+    <p style={{
+      fontSize: 9,
+      textTransform: "uppercase" as const,
+      letterSpacing: "0.07em",
+      color: "var(--tx-4)",
+      margin: "0 0 2px",
+    }}>{label}</p>
+    <p style={{ fontSize: 12, fontWeight: 600, color: "var(--tx-1)", margin: 0, fontFamily: "monospace" }}>
+      {value}
+    </p>
+  </div>
+);
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 interface ComposePageProps { onImportMidi: () => void; }
@@ -246,9 +284,7 @@ interface ComposePageProps { onImportMidi: () => void; }
 export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
 
   // ── Local UI state ────────────────────────────────────────────────────────
-
   const [selectedHitId,  setSelectedHitId] = useState<string | null>(null);
-  const [focusMode,      setFocusMode]     = useState(false);
   const [viewMode,       setViewMode]      = useState<ViewMode>("score");
   const [showAiPanel,    setShowAiPanel]   = useState(false);
   const [showKitBalance, setShowKitBalance]= useState(false);
@@ -258,12 +294,11 @@ export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
   const [showEdu,        setShowEdu]       = useState(false);
 
   // ── Store ─────────────────────────────────────────────────────────────────
-
   const {
     project, rhythm, quantizeOptions, zoomX, zoomY, activeTick, message,
     setGrid, setPreserveGroove, setZoomX, setZoomY,
-    togglePlayback, stop, rewindToStart, moveHit, removeHit, addHit, setHitVelocity,
-    newProject,
+    stop, rewindToStart, moveHit, removeHit, addHit, setHitVelocity,
+    newProject, togglePlayback,
     heatmap, setHeatmap, preview, setPreview, cleanup, setCleanup,
     quantizedHits, isPlaying,
     limbMap, limbMode, showLimbAnalysis, setLimbMode, setShowLimbAnalysis,
@@ -284,7 +319,6 @@ export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
   const isScoreView      = viewMode === "score";
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
@@ -297,12 +331,6 @@ export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
     return () => window.removeEventListener("keydown", onKey);
   }, [togglePlayback, rewindToStart, stop]);
 
-  const toggleFocus = async () => {
-    const next = !focusMode;
-    setFocusMode(next);
-    await window.drumApp.setFullscreen(next);
-  };
-
   const seekMeasure = (m: number) =>
     void seekTo(m * (project?.ppq ?? 480) * (project?.timeSignature.numerator ?? 4));
 
@@ -311,145 +339,133 @@ export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden", background: "var(--bg-app)" }}>
 
-      {/* ── Transport ── */}
-      <TransportBar />
-
       {/* ── Toolbar ── */}
-      {!focusMode && (
-        <div
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap" as const,
+          alignItems: "center",
+          gap: 6,
+          padding: "5px 12px",
+          borderBottom: "1px solid var(--sep)",
+          background: "var(--bg-1)",
+          flexShrink: 0,
+        }}
+      >
+        {/* ── Group: Edit ── */}
+        <GroupLabel>Edit</GroupLabel>
+        <select
+          value={quantizeOptions.grid}
+          onChange={(e) => setGrid(e.target.value as QuantizeGrid)}
           style={{
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            gap: 4,
-            padding: "5px 10px",
-            borderBottom: "1px solid var(--sep)",
-            background: "var(--bg-1)",
-            flexShrink: 0,
+            padding: "3px 6px", borderRadius: 5, fontSize: 11,
+            background: "var(--bg-3)", color: "var(--tx-2)",
+            border: "1px solid var(--sep)", cursor: "pointer",
           }}
         >
-          {/* Grid + Groove */}
-          <select
-            value={quantizeOptions.grid}
-            onChange={(e) => setGrid(e.target.value as QuantizeGrid)}
-            style={{
-              padding: "2px 6px", borderRadius: 5, fontSize: 11,
-              background: "var(--bg-3)", color: "var(--tx-2)",
-              border: "1px solid var(--sep)", cursor: "pointer",
-            }}
+          {["1/4","1/8","1/16","1/32","8T","16T"].map((v) => <option key={v}>{v}</option>)}
+        </select>
+        <label style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={quantizeOptions.preserveGroove}
+            onChange={(e) => setPreserveGroove(e.target.checked)}
+            style={{ width: 11, height: 11, accentColor: "var(--accent)", cursor: "pointer" }}
+          />
+          <span style={{ fontSize: 11, color: "var(--tx-3)" }}>Groove</span>
+        </label>
+
+        <Sep />
+
+        {/* ── Group: Zoom ── */}
+        <GroupLabel>Zoom</GroupLabel>
+        {(["X","Y"] as const).map((axis) => {
+          const val  = axis === "X" ? zoomX : zoomY;
+          const setVal = axis === "X" ? setZoomX : setZoomY;
+          return (
+            <label key={axis} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ fontSize: 10, color: "var(--tx-4)", width: 8 }}>{axis}</span>
+              <input
+                type="range" min={0.7} max={2} step={0.1} value={val}
+                onChange={(e) => setVal(Number(e.target.value))}
+                style={{ width: 52, accentColor: "var(--tx-3)" }}
+              />
+              <span style={{ fontSize: 10, color: "var(--tx-3)", width: 28, textAlign: "right", fontFamily: "monospace" }}>
+                {Math.round(val * 100)}%
+              </span>
+            </label>
+          );
+        })}
+
+        <Sep />
+
+        {/* ── Group: Kit ── */}
+        <GroupLabel>Kit</GroupLabel>
+        <DrumKitSelector />
+
+        <Sep />
+
+        {/* ── Group: View ── */}
+        <GroupLabel>Vue</GroupLabel>
+        <ViewSwitcher value={viewMode} onChange={setViewMode} />
+
+        <Sep />
+
+        {/* ── Group: Overlays ── */}
+        <GroupLabel>Affichage</GroupLabel>
+        <Btn active={heatmap.enabled} onClick={() => setHeatmap({ enabled: !heatmap.enabled })}>Chaleur</Btn>
+        <Btn active={preview.enabled} onClick={() => setPreview({ enabled: !preview.enabled })}>Son</Btn>
+        {isScoreView && project && (
+          <Btn active={cleanup.enabled} onClick={() => setCleanup({ enabled: !cleanup.enabled })}>Nettoyer</Btn>
+        )}
+
+        {/* Score-only analysis */}
+        {isScoreView && project && (<>
+          <Btn active={showLimbAnalysis} onClick={() => setShowLimbAnalysis(!showLimbAnalysis)}>Membres</Btn>
+          <Btn active={showSectionTimeline} onClick={() => setShowSectionTimeline(!showSectionTimeline)}>Sections</Btn>
+          <Btn
+            active={showPlayabilityOverlay}
+            onClick={() => setShowPlayabilityOverlay(!showPlayabilityOverlay)}
           >
-            {["1/4","1/8","1/16","1/32","8T","16T"].map((v) => <option key={v}>{v}</option>)}
-          </select>
-
-          <label style={{ display: "flex", alignItems: "center", gap: 5, cursor: "pointer" }}>
-            <input
-              type="checkbox"
-              checked={quantizeOptions.preserveGroove}
-              onChange={(e) => setPreserveGroove(e.target.checked)}
-              style={{ width: 11, height: 11, accentColor: "var(--accent)", cursor: "pointer" }}
-            />
-            <span style={{ fontSize: 11, color: "var(--tx-3)" }}>Groove</span>
-          </label>
-
-          <Sep />
-
-          {/* Zoom */}
-          {["X","Y"].map((axis) => {
-            const val  = axis === "X" ? zoomX : zoomY;
-            const setVal = axis === "X" ? setZoomX : setZoomY;
-            return (
-              <label key={axis} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ fontSize: 10, color: "var(--tx-4)", width: 8 }}>{axis}</span>
-                <input type="range" min={0.7} max={2} step={0.1} value={val}
-                  onChange={(e) => setVal(Number(e.target.value))}
-                  style={{ width: 50, accentColor: "var(--tx-2)" }} />
-                <span style={{ fontSize: 10, color: "var(--tx-3)", width: 26, textAlign: "right", fontFamily: "monospace" }}>
-                  {Math.round(val * 100)}%
-                </span>
-              </label>
-            );
-          })}
-
-          <Sep />
-
-          {/* Kit */}
-          <DrumKitSelector />
-
-          <Sep />
-
-          {/* View mode */}
-          <ViewSwitcher value={viewMode} onChange={setViewMode} />
-
-          <Sep />
-
-          {/* Visual overlays */}
-          <Btn active={heatmap.enabled} onClick={() => setHeatmap({ enabled: !heatmap.enabled })}>Heatmap</Btn>
-          <Btn active={preview.enabled} onClick={() => setPreview({ enabled: !preview.enabled })}>Sound</Btn>
-          {isScoreView && project && (
-            <Btn active={cleanup.enabled} onClick={() => setCleanup({ enabled: !cleanup.enabled })}>Clean</Btn>
-          )}
-
-          <Sep />
-
-          {/* Analysis */}
-          {isScoreView && project && (<>
-            <Btn active={showLimbAnalysis}        onClick={() => setShowLimbAnalysis(!showLimbAnalysis)}>Limbs</Btn>
-            <Btn active={showSectionTimeline}     onClick={() => setShowSectionTimeline(!showSectionTimeline)}>Sections</Btn>
-            <Btn
-              active={showPlayabilityOverlay}
-              onClick={() => setShowPlayabilityOverlay(!showPlayabilityOverlay)}
-            >
-              Playability
-              {playabilityBadge.errorCount > 0 && (
-                <span style={{
-                  marginLeft: 4, padding: "0 4px", borderRadius: 9, fontSize: 9, fontWeight: 700,
-                  background: "rgba(255,69,58,0.18)", color: "var(--c-red)",
-                }}>
-                  {playabilityBadge.errorCount}
-                </span>
-              )}
-            </Btn>
-          </>)}
-          {project && <Btn active={showEnergyTimeline} onClick={() => setShowEnergyTimeline(!showEnergyTimeline)}>Energy</Btn>}
-          {viewMode === "body" && <Btn active={showEdu} onClick={() => setShowEdu((v) => !v)}>Éducatif</Btn>}
-
-          <Sep />
-
-          {/* Panels */}
-          <Btn active={showAiPanel}    onClick={() => setShowAiPanel((v) => !v)}>AI</Btn>
-          {project && <Btn active={showKitBalance} onClick={() => setShowKitBalance((v) => !v)}>Balance</Btn>}
-          <Btn active={showHumanize}  onClick={() => setShowHumanize((v) => !v)}>
-            Humanize{humanize.enabled ? " ●" : ""}
+            Jouabilité
+            {playabilityBadge.errorCount > 0 && (
+              <span style={{
+                marginLeft: 4, padding: "0 4px", borderRadius: 9, fontSize: 9, fontWeight: 700,
+                background: "rgba(255,69,58,0.18)", color: "var(--c-red)",
+              }}>
+                {playabilityBadge.errorCount}
+              </span>
+            )}
           </Btn>
-          <Btn active={showMixer}     onClick={() => setShowMixer((v) => !v)}>Mixer</Btn>
-          <Btn active={showMetronome} onClick={() => setShowMetronome((v) => !v)}>Metro</Btn>
+        </>)}
+        {project && <Btn active={showEnergyTimeline} onClick={() => setShowEnergyTimeline(!showEnergyTimeline)}>Énergie</Btn>}
+        {viewMode === "body" && <Btn active={showEdu} onClick={() => setShowEdu((v) => !v)}>Tutoriel</Btn>}
 
-          {/* Edit (context: hit selected) */}
-          {selectedHitId && (<>
-            <Sep />
-            <Btn onClick={() => moveHit(selectedHitId, -24)}>← Tick</Btn>
-            <Btn onClick={() => moveHit(selectedHitId,  24)}>Tick →</Btn>
-            <Btn danger onClick={() => { removeHit(selectedHitId); setSelectedHitId(null); }}>Delete</Btn>
-          </>)}
+        <Sep />
 
-          {/* Focus mode */}
-          <button
-            type="button"
-            onClick={() => void toggleFocus()}
-            style={{
-              marginLeft: "auto", padding: "3px 9px", borderRadius: 5, fontSize: 11, cursor: "pointer",
-              background: "transparent", color: "var(--tx-4)", border: "1px solid transparent",
-              transition: "all 0.12s",
-            }}
-          >
-            Focus
-          </button>
-        </div>
-      )}
+        {/* ── Group: Panels ── */}
+        <GroupLabel>Panneaux</GroupLabel>
+        <Btn active={showAiPanel}    onClick={() => setShowAiPanel((v) => !v)}>AI</Btn>
+        <Btn active={showHumanize}   onClick={() => setShowHumanize((v) => !v)}>
+          Humaniser{humanize.enabled ? " ●" : ""}
+        </Btn>
+        <Btn active={showMixer}      onClick={() => setShowMixer((v) => !v)}>Mixeur</Btn>
+        <Btn active={showMetronome}  onClick={() => setShowMetronome((v) => !v)}>Métro</Btn>
+        {project && <Btn active={showKitBalance} onClick={() => setShowKitBalance((v) => !v)}>Balance</Btn>}
+
+        {/* Context: hit selected */}
+        {selectedHitId && (<>
+          <Sep />
+          <GroupLabel>Note</GroupLabel>
+          <Btn onClick={() => moveHit(selectedHitId, -24)}>← Tick</Btn>
+          <Btn onClick={() => moveHit(selectedHitId,  24)}>Tick →</Btn>
+          <Btn danger onClick={() => { removeHit(selectedHitId); setSelectedHitId(null); }}>Supprimer</Btn>
+        </>)}
+      </div>
 
       {/* ── Energy timeline ── */}
       {project && rhythm && showEnergyTimeline && energyFlow && energyFlow.measures.length > 0 && (
-        <div style={{ flexShrink: 0, padding: "4px 10px", borderBottom: "1px solid var(--sep)", background: "var(--bg-1)" }}>
+        <div style={{ flexShrink: 0, padding: "4px 12px", borderBottom: "1px solid var(--sep)", background: "var(--bg-1)" }}>
           <EnergyTimeline
             energyFlow={energyFlow} sections={sections}
             activeTick={activeTick} totalMeasures={rhythm.measures.length}
@@ -471,11 +487,11 @@ export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
         </div>
       )}
 
-      {/* ── Score view extras (sections, isolation) ── */}
+      {/* ── Score extras (section map, isolation) ── */}
       {project && rhythm && isScoreView && (
         <div style={{ flexShrink: 0, background: "var(--bg-1)" }}>
           {showSectionTimeline && sections.length > 0 && (
-            <div style={{ padding: "4px 10px", borderBottom: "1px solid var(--sep)" }}>
+            <div style={{ padding: "4px 12px", borderBottom: "1px solid var(--sep)" }}>
               <SectionTimeline
                 sections={sections} playabilityMap={showPlayabilityOverlay ? playabilityMap : {}}
                 totalMeasures={rhythm.measures.length} onSeekToMeasure={seekMeasure}
@@ -486,7 +502,7 @@ export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
         </div>
       )}
 
-      {/* ── Main content area ── */}
+      {/* ── Main content row ── */}
       <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
 
         {/* Primary view */}
@@ -538,51 +554,101 @@ export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
           )}
         </div>
 
-        {/* Side panels */}
-        {!focusMode && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 0, overflow: "auto" }}>
-            {showHumanize    && <PanelDrawer><HumanizePanel  onClose={() => setShowHumanize(false)}    /></PanelDrawer>}
-            {showMetronome   && <PanelDrawer><MetronomePanel onClose={() => setShowMetronome(false)}   /></PanelDrawer>}
-            {showMixer       && <PanelDrawer><DrumMixer      onClose={() => setShowMixer(false)}       /></PanelDrawer>}
-            {showKitBalance  && <PanelDrawer><KitBalancePanel onClose={() => setShowKitBalance(false)} /></PanelDrawer>}
-            {showAiPanel     && <PanelDrawer><AiPanel        onClose={() => setShowAiPanel(false)}     /></PanelDrawer>}
+        {/* ── Right side: optional panels + permanent inspector ── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 0, overflow: "auto" }}>
+          {showHumanize   && (
+            <div className="slide-in-right" style={{ flexShrink: 0 }}>
+              <HumanizePanel  onClose={() => setShowHumanize(false)} />
+            </div>
+          )}
+          {showMetronome  && (
+            <div className="slide-in-right" style={{ flexShrink: 0 }}>
+              <MetronomePanel onClose={() => setShowMetronome(false)} />
+            </div>
+          )}
+          {showMixer      && (
+            <div className="slide-in-right" style={{ flexShrink: 0 }}>
+              <DrumMixer      onClose={() => setShowMixer(false)} />
+            </div>
+          )}
+          {showKitBalance && (
+            <div className="slide-in-right" style={{ flexShrink: 0 }}>
+              <KitBalancePanel onClose={() => setShowKitBalance(false)} />
+            </div>
+          )}
+          {showAiPanel    && (
+            <div className="slide-in-right" style={{ flexShrink: 0 }}>
+              <AiPanel        onClose={() => setShowAiPanel(false)} />
+            </div>
+          )}
 
-            {/* Permanent inspector */}
-            <div style={{
-              width: 220, flexShrink: 0, display: "flex", flexDirection: "column", gap: 10,
-              padding: 10, overflow: "auto",
-              borderLeft: "1px solid var(--sep)", background: "var(--bg-1)",
+          {/* ── Permanent inspector ── */}
+          <div style={{
+            width: 216,
+            flexShrink: 0,
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+            padding: 12,
+            overflow: "auto",
+            borderLeft: "1px solid var(--sep)",
+            background: "var(--bg-1)",
+            flex: 1,
+          }}>
+            <p style={{
+              fontSize: 9, fontWeight: 700, textTransform: "uppercase" as const,
+              letterSpacing: "0.09em", color: "var(--tx-4)", margin: 0,
             }}>
-              <p style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--tx-4)", margin: 0 }}>
-                Inspector
-              </p>
+              Inspecteur
+            </p>
 
-              {/* Stats grid */}
+            {/* Stats grid */}
+            {project ? (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-                {[
-                  ["Hits",    project?.hits.length ?? 0],
-                  ["Tempo",   `${(project?.tempoBpm ?? 120).toFixed(0)} BPM`],
-                  ["Sig",     signatureText],
-                  ["Kit",     activeDrumKit.name],
-                ].map(([label, value]) => (
-                  <div key={label as string} style={{
-                    padding: "6px 8px", borderRadius: 6,
-                    background: "var(--bg-2)", border: "1px solid var(--sep)",
-                  }}>
-                    <p style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--tx-4)", margin: "0 0 2px" }}>{label}</p>
-                    <p style={{ fontSize: 11, fontWeight: 600, color: "var(--tx-1)", margin: 0 }}>{value}</p>
-                  </div>
-                ))}
+                <StatCell label="Notes"  value={project.hits.length} />
+                <StatCell label="BPM"    value={project.tempoBpm.toFixed(0)} />
+                <StatCell label="Sig"    value={signatureText} />
+                <StatCell label="Kit"    value={activeDrumKit.name} />
               </div>
+            ) : (
+              <p style={{ fontSize: 11, color: "var(--tx-4)", margin: 0 }}>Aucun projet chargé</p>
+            )}
 
-              {/* Message */}
-              {message && (
-                <p style={{ fontSize: 10, color: "var(--tx-3)", lineHeight: 1.5, margin: 0 }}>{message}</p>
-              )}
+            {/* System message */}
+            {message && (
+              <p style={{ fontSize: 11, color: "var(--tx-3)", lineHeight: 1.5, margin: 0 }}>{message}</p>
+            )}
 
-              {/* Hit list */}
+            {/* Kit indicator */}
+            {project && (
+              <div style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "6px 8px", borderRadius: 7,
+                background: "var(--bg-2)", border: "1px solid var(--sep)",
+              }}>
+                <span style={{
+                  width: 8, height: 8, borderRadius: "50%",
+                  backgroundColor: activeDrumKit.color, flexShrink: 0,
+                }} />
+                <span style={{ fontSize: 11, color: "var(--tx-2)", fontWeight: 500 }}>
+                  {activeDrumKit.name}
+                </span>
+                {isPlaying && (
+                  <span
+                    className="play-dot"
+                    style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--c-green)", marginLeft: "auto" }}
+                  />
+                )}
+              </div>
+            )}
+
+            {/* Editable hit list */}
+            {editableHits.length > 0 && (
               <div>
-                <p style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--tx-4)", margin: "0 0 5px" }}>
+                <p style={{
+                  fontSize: 9, textTransform: "uppercase" as const,
+                  letterSpacing: "0.08em", color: "var(--tx-4)", margin: "0 0 6px",
+                }}>
                   Notes
                 </p>
                 <div style={{ maxHeight: 200, overflowY: "auto" }}>
@@ -605,31 +671,9 @@ export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
                   ))}
                 </div>
               </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ── Footer ── */}
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "3px 12px", fontSize: 10, color: "var(--tx-4)",
-        borderTop: "1px solid var(--sep)", background: "var(--bg-1)", flexShrink: 0,
-      }}>
-        <span>DRUMO · Groove Station</span>
-        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: activeDrumKit.color }} />
-            {activeDrumKit.name}
-          </span>
-          <span style={{ opacity: 0.5 }}>·</span>
-          <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            {isPlaying && (
-              <span className="play-dot" style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--c-green)" }} />
             )}
-            {isPlaying ? "Playing" : "Stopped"}
-          </span>
-        </span>
+          </div>
+        </div>
       </div>
     </div>
   );

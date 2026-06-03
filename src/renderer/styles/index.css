@@ -22,6 +22,7 @@
   /* ── Separators */
   --sep:      rgba(255,255,255,0.07);
   --sep-2:    rgba(255,255,255,0.11);
+  --sep-3:    rgba(255,255,255,0.16);
 
   /* ── Text hierarchy (Apple SF system) */
   --tx-1:  #f5f5f7;    /* primary */
@@ -47,6 +48,13 @@
   /* ── Shadows */
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.40);
   --shadow-md: 0 4px 16px rgba(0,0,0,0.55);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.65);
+
+  /* ── Radii */
+  --r-sm:  6px;
+  --r-md:  10px;
+  --r-lg:  14px;
+  --r-xl:  18px;
 }
 
 /* ─── Backward-compat aliases (previous refactor used different names) ───────── */
@@ -79,8 +87,56 @@
 
 body {
   margin: 0;
-  background: var(--bg-app);
+  background: var(--full-grad, var(--bg-app));
+  background-attachment: fixed;
+  background-size: cover;
   color: var(--tx-1);
+  min-height: 100vh;
+  transition: background 0.55s ease, background-size 0.3s ease;
+}
+
+/* Aurora — animation du gradient */
+@keyframes _aurora-shift {
+  0%   { background-position: 0%   50%; }
+  33%  { background-position: 100% 30%; }
+  66%  { background-position: 50%  100%; }
+  100% { background-position: 0%   50%; }
+}
+body._aurora-anim {
+  background-size: 300% 300% !important;
+  animation: _aurora-shift 14s ease-in-out infinite;
+}
+
+/* ─── App shell — totalement transparent pour laisser le gradient body percer ── */
+
+.app-bg {
+  background: transparent !important;
+  position: relative;
+}
+
+/* ─── Glassmorphism utilities ────────────────────────────────────────────────── */
+
+/* backdrop-filter visible uniquement quand --bg-1…4 sont semi-transparents       */
+/* (le moteur gradient les rend semi-transparents quand data-glass="1")            */
+
+[data-glass="1"] .glass {
+  backdrop-filter: blur(20px) saturate(1.8) brightness(1.05);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8) brightness(1.05);
+}
+[data-glass="1"] .glass-sm {
+  backdrop-filter: blur(12px) saturate(1.5);
+  -webkit-backdrop-filter: blur(12px) saturate(1.5);
+}
+[data-glass="1"] .glass-lg {
+  backdrop-filter: blur(32px) saturate(2.0) brightness(1.08);
+  -webkit-backdrop-filter: blur(32px) saturate(2.0) brightness(1.08);
+}
+/* Performance : supprimer backdrop-filter quand animations désactivées */
+[data-anim="none"] .glass,
+[data-anim="none"] .glass-sm,
+[data-anim="none"] .glass-lg {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 button { border: none; cursor: pointer; }
@@ -116,6 +172,102 @@ button { border: none; cursor: pointer; }
 .fade-in        { animation: fade-in        0.18s ease both; }
 .slide-in-right { animation: slide-in-right 0.20s ease both; }
 .slide-up       { animation: slide-up       0.20s ease both; }
+
+/* ─── Theme system ───────────────────────────────────────────────────────────── */
+
+/* Accent color overrides — default (blue) is already set in :root */
+[data-accent="red"]    { --accent: #ff453a; --accent-dim: rgba(255,69,58,0.13);  --accent-line: rgba(255,69,58,0.60);  --accent-ring: rgba(255,69,58,0.22);  }
+[data-accent="green"]  { --accent: #30d158; --accent-dim: rgba(48,209,88,0.13);  --accent-line: rgba(48,209,88,0.60);  --accent-ring: rgba(48,209,88,0.22);  }
+[data-accent="purple"] { --accent: #bf5af2; --accent-dim: rgba(191,90,242,0.13); --accent-line: rgba(191,90,242,0.60); --accent-ring: rgba(191,90,242,0.22); }
+[data-accent="orange"] { --accent: #ff9f0a; --accent-dim: rgba(255,159,10,0.13); --accent-line: rgba(255,159,10,0.60); --accent-ring: rgba(255,159,10,0.22); }
+[data-accent="black"]  { --accent: #8e8e93; --accent-dim: rgba(142,142,147,0.13);--accent-line: rgba(142,142,147,0.60);--accent-ring: rgba(142,142,147,0.22);}
+
+/* Light mode — "score sheet" philosophy: readable, low fatigue, pedagogical */
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg-app: #f2f2f7;
+  --bg-1:   #e8e8ed;
+  --bg-2:   #ffffff;
+  --bg-3:   #f0f0f5;
+  --bg-4:   #dcdce0;
+  --bg-hover: rgba(0,0,0,0.04);
+  --bg-sel:   rgba(0,0,0,0.06);
+
+  --sep:   rgba(0,0,0,0.08);
+  --sep-2: rgba(0,0,0,0.13);
+  --sep-3: rgba(0,0,0,0.20);
+
+  --tx-1: #1d1d1f;
+  --tx-2: #3a3a3c;
+  --tx-3: #86868b;
+  --tx-4: #aeaeb2;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.10);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.16);
+
+  /* Semantic — slightly deeper for contrast on white */
+  --c-green:  #25a244;
+  --c-red:    #d93025;
+  --c-yellow: #c09000;
+  --c-orange: #c97800;
+
+  /* IA indicators — darker on light background */
+  --ia-ok:     #1a8631;
+  --ia-warn:   #b56900;
+  --ia-danger: #cc2d23;
+  --ia-info:   #0058b2;
+  --ia-groove: #5856d6;
+}
+
+/* Dark mode (default) — add IA indicator tokens */
+:root {
+  --ia-ok:     #30d158;
+  --ia-warn:   #ff9f0a;
+  --ia-danger: #ff453a;
+  --ia-info:   #0071e3;
+  --ia-groove: #bf5af2;
+}
+
+/* Visual density */
+[data-density="minimal"] { --ui-space: 0.80; --ui-radius-scale: 0.85; }
+[data-density="standard"]{ --ui-space: 1.00; --ui-radius-scale: 1.00; }
+[data-density="dense"]   { --ui-space: 1.20; --ui-radius-scale: 1.15; }
+
+/* Font size scale */
+[data-fontsize="small"]  { --ui-font-base: 12px; --ui-font-sm: 10px; --ui-font-xs: 9px; }
+[data-fontsize="medium"] { --ui-font-base: 13px; --ui-font-sm: 11px; --ui-font-xs: 10px; }
+[data-fontsize="large"]  { --ui-font-base: 14px; --ui-font-sm: 12px; --ui-font-xs: 11px; }
+
+/* Reduced / no animations */
+[data-anim="none"]    *, [data-anim="none"]  *::before, [data-anim="none"]  *::after { animation-duration: 0ms !important; transition-duration: 0ms !important; }
+[data-anim="reduced"] *, [data-anim="reduced"]*::before,[data-anim="reduced"]*::after { animation-duration: 80ms !important; transition-duration: 80ms !important; }
+
+/* High contrast boost */
+[data-hc="1"] { --sep: rgba(255,255,255,0.18); --sep-2: rgba(255,255,255,0.26); --tx-2: var(--tx-1); }
+[data-theme="light"][data-hc="1"] { --sep: rgba(0,0,0,0.22); --sep-2: rgba(0,0,0,0.32); --tx-2: var(--tx-1); }
+
+/* Light mode scrollbars */
+[data-theme="light"] * { scrollbar-color: rgba(0,0,0,0.18) transparent; }
+[data-theme="light"] *::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.18); }
+
+/* ─── Système de dégradés dynamiques ────────────────────────────────────────── */
+
+/*
+ * gradientEngine.ts écrit directement sur document.body.style.background
+ * et rend --bg-1…4 très semi-transparents en mode glass, ce qui laisse le
+ * gradient du body percer à travers tous les panneaux.
+ *
+ * Variables injectées dynamiquement :
+ *   --bg-app, --bg-1…4, --tx-1…4, --sep, --sep-2, --sep-3
+ *   --accent, --accent-dim, --accent-line, --accent-ring
+ *   --full-grad, --grad-accent-rgb
+ */
+
+:root {
+  --full-grad:       var(--bg-app);
+  --grad-accent-rgb: 0, 113, 227;
+}
 
 /* ─── Playing state pulse (subtle, not flashy) ───────────────────────────────── */
 

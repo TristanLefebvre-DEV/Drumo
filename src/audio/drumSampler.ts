@@ -61,57 +61,53 @@ const createSnare = (output: Tone.ToneAudioNode = getPreviewGain()): DrumVoice =
   };
 };
 
-const makeMetalSynth = (
-  freq: number,
-  opts: ConstructorParameters<typeof Tone.MetalSynth>[0],
+/**
+ * NoiseSynth + Filter — replaces Tone.MetalSynth which is silent in this
+ * Tone.js 15.1.22 / Electron environment.
+ */
+const makeNoiseSynth = (
+  decay: number,
+  filterType: "highpass" | "bandpass",
+  filterFreq: number,
   output: Tone.ToneAudioNode = getPreviewGain()
-): Tone.MetalSynth => {
-  const s = new Tone.MetalSynth(opts).connect(output);
-  s.frequency.value = freq;
-  return s;
+): { noise: Tone.NoiseSynth; filter: Tone.Filter } => {
+  const filter = new Tone.Filter({ frequency: filterFreq, type: filterType, Q: 1.2 }).connect(output);
+  const noise = new Tone.NoiseSynth({
+    noise: { type: "white" },
+    envelope: { attack: 0.001, decay, sustain: 0, release: Math.max(0.01, decay * 0.1) },
+  }).connect(filter);
+  return { noise, filter };
 };
 
 const createSnareRim = (output: Tone.ToneAudioNode = getPreviewGain()): DrumVoice => {
-  const s = makeMetalSynth(800, {
-    envelope: { attack: 0.001, decay: 0.05, release: 0.01 },
-    harmonicity: 8, modulationIndex: 20, resonance: 5000, octaves: 0.5,
-  }, output);
+  const { noise, filter } = makeNoiseSynth(0.05, "highpass", 5000, output);
   return {
-    trigger: (v = 0.75, time?) => s.triggerAttackRelease("32n", time ?? t(), Math.min(1, v ?? 0.75)),
-    dispose: () => s.dispose(),
+    trigger: (v = 0.75, time?) => noise.triggerAttackRelease("32n", time ?? t(), Math.min(1, v ?? 0.75)),
+    dispose: () => { noise.dispose(); filter.dispose(); },
   };
 };
 
 const createHihatClosed = (output: Tone.ToneAudioNode = getPreviewGain()): DrumVoice => {
-  const s = makeMetalSynth(400, {
-    envelope: { attack: 0.001, decay: 0.055, release: 0.01 },
-    harmonicity: 5.1, modulationIndex: 32, resonance: 4000, octaves: 1.5,
-  }, output);
+  const { noise, filter } = makeNoiseSynth(0.055, "highpass", 7500, output);
   return {
-    trigger: (v = 0.75, time?) => s.triggerAttackRelease("32n", time ?? t(), Math.min(1, v ?? 0.75)),
-    dispose: () => s.dispose(),
+    trigger: (v = 0.75, time?) => noise.triggerAttackRelease("32n", time ?? t(), Math.min(1, v ?? 0.75)),
+    dispose: () => { noise.dispose(); filter.dispose(); },
   };
 };
 
 const createHihatOpen = (output: Tone.ToneAudioNode = getPreviewGain()): DrumVoice => {
-  const s = makeMetalSynth(400, {
-    envelope: { attack: 0.001, decay: 0.48, release: 0.28 },
-    harmonicity: 5.1, modulationIndex: 32, resonance: 4000, octaves: 1.5,
-  }, output);
+  const { noise, filter } = makeNoiseSynth(0.48, "highpass", 7000, output);
   return {
-    trigger: (v = 0.75, time?) => s.triggerAttackRelease("4n", time ?? t(), Math.min(1, v ?? 0.75)),
-    dispose: () => s.dispose(),
+    trigger: (v = 0.75, time?) => noise.triggerAttackRelease("4n", time ?? t(), Math.min(1, v ?? 0.75)),
+    dispose: () => { noise.dispose(); filter.dispose(); },
   };
 };
 
 const createHihatPedal = (output: Tone.ToneAudioNode = getPreviewGain()): DrumVoice => {
-  const s = makeMetalSynth(340, {
-    envelope: { attack: 0.001, decay: 0.038, release: 0.01 },
-    harmonicity: 4.5, modulationIndex: 28, resonance: 3400, octaves: 1.0,
-  }, output);
+  const { noise, filter } = makeNoiseSynth(0.038, "highpass", 7000, output);
   return {
-    trigger: (v = 0.75, time?) => s.triggerAttackRelease("32n", time ?? t(), Math.min(1, v ?? 0.75)),
-    dispose: () => s.dispose(),
+    trigger: (v = 0.75, time?) => noise.triggerAttackRelease("32n", time ?? t(), Math.min(1, v ?? 0.75)),
+    dispose: () => { noise.dispose(); filter.dispose(); },
   };
 };
 
@@ -126,15 +122,13 @@ const makeTom = (note: string, decay: number, output: Tone.ToneAudioNode = getPr
   };
 };
 
-const makeCymbal = (freq: number, decay: number, modIdx: number, output: Tone.ToneAudioNode = getPreviewGain()): DrumVoice => {
-  const s = makeMetalSynth(freq, {
-    envelope: { attack: 0.001, decay, release: decay * 0.25 },
-    harmonicity: 3.1, modulationIndex: modIdx, resonance: 3000, octaves: 1.5,
-  }, output);
-  // No extra multiplier — velocity scaling is handled upstream by the scheduler / velocity processor
+// Map old MetalSynth freq (250–520 Hz range) → bandpass center (1.5–7 kHz)
+const makeCymbal = (freq: number, decay: number, _modIdx: number, output: Tone.ToneAudioNode = getPreviewGain()): DrumVoice => {
+  const filterFreq = Math.min(7000, Math.max(1500, 3500 * (freq / 320)));
+  const { noise, filter } = makeNoiseSynth(decay, "bandpass", filterFreq, output);
   return {
-    trigger: (v = 0.75, time?) => s.triggerAttackRelease("4n", time ?? t(), Math.min(1, v ?? 0.75)),
-    dispose: () => s.dispose(),
+    trigger: (v = 0.75, time?) => noise.triggerAttackRelease("4n", time ?? t(), Math.min(1, v ?? 0.75)),
+    dispose: () => { noise.dispose(); filter.dispose(); },
   };
 };
 
