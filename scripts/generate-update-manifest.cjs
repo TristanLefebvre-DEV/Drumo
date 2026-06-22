@@ -11,13 +11,18 @@ const baseUrl = String(process.argv[2] || process.env.DRUMO_RELEASE_BASE_URL || 
 if (!baseUrl || !/^https:\/\//i.test(baseUrl)) throw new Error("Indiquez l'URL HTTPS publique des fichiers : npm run release:manifest -- https://serveur/drumo");
 if (!fs.existsSync(installerPath)) throw new Error(`Installateur introuvable : ${installerPath}`);
 
+const releaseHost = new URL(baseUrl).hostname.toLowerCase();
+// GitHub normalizes spaces in uploaded release asset names to dots.
+const publicFileName = process.env.DRUMO_RELEASE_FILE_NAME
+  || (releaseHost === "github.com" ? fileName.replace(/ /g, ".") : fileName);
+
 const bytes = fs.readFileSync(installerPath);
 const manifest = {
   version,
   publishedAt: new Date().toISOString(),
   notes: process.env.DRUMO_RELEASE_NOTES || `Mise à jour Drumo ${version}`,
   windows: {
-    url: `${baseUrl}/${encodeURIComponent(fileName)}`,
+    url: `${baseUrl}/${encodeURIComponent(publicFileName)}`,
     sha256: crypto.createHash("sha256").update(bytes).digest("hex"),
     size: bytes.length,
   },
