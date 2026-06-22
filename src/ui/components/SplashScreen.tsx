@@ -271,7 +271,7 @@ export const SplashScreen = ({
         letterSpacing: "0.04em",
         opacity:       0.6,
       }}>
-        1.0.0
+        {__APP_VERSION__}
       </div>
     </div>
   );

@@ -42,6 +42,8 @@ export const AdminPage = () => {
   const [busy, setBusy] = useState(false);
   const [feedUrl, setFeedUrl] = useState(settings.updateFeedUrl ?? "");
   const [updateState, setUpdateState] = useState<DrumoUpdateState | null>(null);
+  const [serverConnection, setServerConnection] = useState<{ mode: "local" | "central"; apiUrl: string } | null>(null);
+  const [serverApiUrl, setServerApiUrl] = useState(""); const [serverMessage, setServerMessage] = useState("");
   const [newUser, setNewUser] = useState({ username: "", password: "", role: "user" as DrumoRole });
   const [course, setCourse] = useState({ id: "", title: "", description: "", content: "", level: "Tous niveaux", tags: "", published: true });
 
@@ -68,6 +70,7 @@ export const AdminPage = () => {
     void window.drumApp.updates.getState().then(setUpdateState);
     return window.drumApp.updates.onState(setUpdateState);
   }, []);
+  useEffect(() => { void window.drumApp.connection.get().then((value) => { setServerConnection(value); setServerApiUrl(value.apiUrl); }); }, []);
 
   if (actor.role !== "admin") {
     return <div style={{ height: "100%", display: "grid", placeItems: "center", color: "var(--c-red)" }}>Accès administrateur requis.</div>;
@@ -185,6 +188,11 @@ export const AdminPage = () => {
           <div style={{ display: "flex", alignItems: "start", justifyContent: "space-between", gap: 20 }}><div><h2 style={{ margin: "0 0 8px", fontSize: 13 }}>Mises à jour connectées</h2><p style={{ margin: 0, color: "var(--tx-3)", fontSize: 11, lineHeight: 1.55 }}>Drumo vérifie ce manifeste HTTPS, télécharge le nouvel installateur, contrôle son empreinte SHA-256 puis propose un redémarrage automatique.</p></div><label style={{ display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", color: "var(--tx-3)", fontSize: 10 }}><Toggle disabled={busy} checked={settings.updatesEnabled} onChange={(updatesEnabled) => void patchSettings({ updatesEnabled })} />Automatiques</label></div>
           <div style={{ display: "flex", gap: 7, marginTop: 13 }}><input aria-label="Adresse du manifeste de mises à jour" value={feedUrl} onChange={(event) => setFeedUrl(event.target.value)} placeholder="https://votre-serveur.fr/drumo/latest.json" style={{ ...field, minWidth: 0, flex: 1 }} /><button type="button" disabled={busy} onClick={() => void patchSettings({ updateFeedUrl: feedUrl })} style={action}>Enregistrer</button><button type="button" disabled={busy || !settings.updateFeedUrl} onClick={() => void window.drumApp.updates.check()} style={{ ...action, background: "var(--bg-2)", color: "var(--tx-2)", borderColor: "var(--sep-2)" }}>Vérifier maintenant</button></div>
           <div style={{ display: "flex", justifyContent: "space-between", marginTop: 9, color: "var(--tx-4)", fontSize: 9 }}><span>Version installée : {updateState?.currentVersion ?? "—"}</span><span>{updateState?.message ?? (settings.updateFeedUrl ? "Prêt à vérifier" : "Ajoutez l’adresse du manifeste central.")}</span></div>
+        </section>
+        <section style={{ ...panel, gridColumn: "1 / -1" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 20 }}><div><h2 style={{ margin: "0 0 8px", fontSize: 13 }}>Comptes centralisés</h2><p style={{ margin: 0, color: "var(--tx-3)", fontSize: 11, lineHeight: 1.55 }}>Toutes les installations utilisant cette API partagent les mêmes utilisateurs, rôles, cours et projets.</p></div><strong style={{ color: serverConnection?.mode === "central" ? "var(--c-green)" : "var(--c-orange)", fontSize: 10, whiteSpace: "nowrap" }}>● {serverConnection?.mode === "central" ? "Serveur central" : "Stockage local"}</strong></div>
+          <div style={{ display: "flex", gap: 7, marginTop: 13 }}><input aria-label="Adresse de l'API centrale" value={serverApiUrl} onChange={(event) => setServerApiUrl(event.target.value)} placeholder="https://api.votre-domaine.fr" style={{ ...field, minWidth: 0, flex: 1 }} /><button type="button" onClick={() => void window.drumApp.connection.test({ apiUrl: serverApiUrl }).then((result) => setServerMessage(result.message))} style={{ ...action, background: "var(--bg-2)", color: "var(--tx-2)", borderColor: "var(--sep-2)" }}>Tester</button><button type="button" onClick={() => void window.drumApp.connection.set({ apiUrl: serverApiUrl })} style={action}>Appliquer et relancer</button></div>
+          {serverMessage && <p style={{ margin: "8px 0 0", color: "var(--tx-4)", fontSize: 9 }}>{serverMessage}</p>}
         </section>
       </div>}
     </div>

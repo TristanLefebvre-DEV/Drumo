@@ -34,6 +34,11 @@ contextBridge.exposeInMainWorld("drumApp", {
       return () => ipcRenderer.removeListener("updates:state", handler);
     },
   },
+  connection: {
+    get: () => ipcRenderer.invoke("connection:get"),
+    set: (input: unknown) => ipcRenderer.invoke("connection:set", input),
+    test: (input?: unknown) => ipcRenderer.invoke("connection:test", input),
+  },
   // ── Fichiers MIDI / projet ────────────────────────────────────────────────
   openMidiFile: () =>
     ipcRenderer.invoke("dialog:openMidi"),

@@ -37,6 +37,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Build central API
+        run: npm run server:build
+
       - name: Verify tag matches package version
         if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh

@@ -26,6 +26,9 @@ const Login = ({ login, register }: { login: (username: string, password: string
   const [username, setUsername] = useState(""); const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState(""); const [creating, setCreating] = useState(false);
   const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
+  const [connection, setConnection] = useState<{ mode: "local" | "central"; apiUrl: string } | null>(null);
+  const [showServer, setShowServer] = useState(false); const [apiUrl, setApiUrl] = useState(""); const [serverMessage, setServerMessage] = useState("");
+  useEffect(() => { void window.drumApp.connection.get().then((value) => { setConnection(value); setApiUrl(value.apiUrl); }); }, []);
   const submit = async (event: React.FormEvent) => {
     event.preventDefault(); setBusy(true); setError("");
     if (creating && password !== confirm) { setBusy(false); setError("Les mots de passe ne correspondent pas."); return; }
@@ -42,6 +45,10 @@ const Login = ({ login, register }: { login: (username: string, password: string
       {error && <p style={{ color: "var(--c-red)", fontSize: 11 }}>{error}</p>}
       <button disabled={busy || username.length < 3 || !password || (creating && (password.length < 8 || !confirm))} style={{ ...button, opacity: username.length < 3 || !password || (creating && (password.length < 8 || !confirm)) ? .45 : 1 }}>{busy ? "Patiente…" : creating ? "Créer mon compte" : "Se connecter"}</button>
       <button type="button" disabled={busy} onClick={() => { setCreating((value) => !value); setError(""); setPassword(""); setConfirm(""); }} style={{ width: "100%", marginTop: 12, border: 0, background: "transparent", color: "var(--accent)", fontSize: 10, cursor: "pointer" }}>{creating ? "J’ai déjà un compte" : "Créer un compte utilisateur"}</button>
+      <div style={{ marginTop: 14, paddingTop: 11, borderTop: "1px solid var(--sep)" }}>
+        <button type="button" onClick={() => setShowServer((value) => !value)} style={{ display: "flex", justifyContent: "space-between", width: "100%", padding: 0, border: 0, background: "transparent", color: "var(--tx-4)", fontSize: 9, cursor: "pointer" }}><span>Serveur Drumo</span><span style={{ color: connection?.mode === "central" ? "var(--c-green)" : "var(--c-orange)" }}>● {connection?.mode === "central" ? "Centralisé" : "Local"}</span></button>
+        {showServer && <div style={{ marginTop: 9 }}><input value={apiUrl} onChange={(event) => setApiUrl(event.target.value)} placeholder="https://api.votre-domaine.fr" style={{ ...field, fontSize: 10 }} /><div style={{ display: "flex", gap: 6, marginTop: 6 }}><button type="button" onClick={() => void window.drumApp.connection.test({ apiUrl }).then((result) => setServerMessage(result.message))} style={{ flex: 1, height: 29, borderRadius: 6, border: "1px solid var(--sep-2)", background: "var(--bg-2)", color: "var(--tx-2)", fontSize: 9, cursor: "pointer" }}>Tester</button><button type="button" onClick={() => void window.drumApp.connection.set({ apiUrl })} style={{ flex: 1, height: 29, borderRadius: 6, border: 0, background: "var(--accent)", color: "#fff", fontSize: 9, fontWeight: 700, cursor: "pointer" }}>Appliquer et relancer</button></div>{serverMessage && <p style={{ margin: "6px 0 0", color: "var(--tx-3)", fontSize: 9 }}>{serverMessage}</p>}<p style={{ margin: "7px 0 0", color: "var(--tx-4)", fontSize: 8, lineHeight: 1.4 }}>Sans adresse, les comptes restent uniquement sur ce PC.</p></div>}
+      </div>
     </form>
   </div>;
 };

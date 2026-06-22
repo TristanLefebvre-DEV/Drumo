@@ -1,5 +1,7 @@
 /// <reference types="vite/client" />
 
+declare const __APP_VERSION__: string;
+
 declare global {
   type DrumoRole = "user" | "admin";
   interface DrumoUser {
@@ -77,6 +79,11 @@ declare global {
         download: () => Promise<DrumoUpdateState>;
         install: () => Promise<boolean>;
         onState: (listener: (state: DrumoUpdateState) => void) => () => void;
+      };
+      connection: {
+        get: () => Promise<{ mode: "local" | "central"; apiUrl: string }>;
+        set: (input: { apiUrl: string }) => Promise<{ mode: "local" | "central"; apiUrl: string }>;
+        test: (input?: { apiUrl?: string }) => Promise<{ ok: boolean; message: string }>;
       };
       // ── Fichiers MIDI / projet ───────────────────────────────────────────
       openMidiFile: () => Promise<{ filePath: string; bytes: number[] } | null>;

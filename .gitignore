@@ -1,14 +1,17 @@
 node_modules/
 dist/
 dist-electron/
+dist-server/
 release/
 .builder-cache/
 .packaging-app/
 .packaging-bin/
 .visual-test/
+.server-test/
 *.log
 .env
 .env.*
 *.env
 out/
+data/
 .claude/

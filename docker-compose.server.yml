@@ -1,0 +1,17 @@
+services:
+  drumo-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    environment:
+      DRUMO_ADMIN_USERNAME: admin
+      DRUMO_ADMIN_PASSWORD: ${DRUMO_ADMIN_PASSWORD:?Définissez DRUMO_ADMIN_PASSWORD}
+      TRUST_PROXY: "true"
+    volumes:
+      - drumo-data:/data
+
+volumes:
+  drumo-data:

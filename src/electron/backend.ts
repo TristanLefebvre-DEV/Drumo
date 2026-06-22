@@ -2,6 +2,8 @@ import type { IpcMain } from "electron";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { BackendError } from "./backendError";
+export { BackendError } from "./backendError";
 
 type Role = "user" | "admin";
 const DEFAULT_UPDATE_FEED_URL = "https://github.com/TristanLefebvre-DEV/Drumo/releases/latest/download/latest.json";
@@ -50,12 +52,6 @@ interface Database {
   settings: { maintenance: boolean; coachEnabled: boolean; updatesEnabled: boolean; updateFeedUrl: string };
 }
 interface Session { userId: string; expiresAt: number }
-
-export class BackendError extends Error {
-  constructor(public readonly code: string, message: string) {
-    super(message);
-  }
-}
 
 const now = () => new Date().toISOString();
 const id = () => crypto.randomUUID();
@@ -114,18 +110,23 @@ export class DrumoBackend {
   private readonly failedLogins = new Map<string, { attempts: number; blockedUntil: number }>();
   private writeQueue: Promise<void> = Promise.resolve();
 
-  constructor(private readonly dataFile: string) {}
+  constructor(
+    private readonly dataFile: string,
+    private readonly defaults: { adminUsername?: string; adminPassword?: string } = {},
+  ) {}
 
   private async createDefaultDatabase(): Promise<Database> {
     const adminId = id();
     const createdAt = now();
+    const adminUsername = this.defaults.adminUsername?.trim() || "admin";
+    const adminPassword = this.defaults.adminPassword || "admin";
     return {
       version: 1,
       users: [{
         id: adminId,
-        username: "admin",
-        usernameKey: "admin",
-        password: await hashPassword("admin"),
+        username: adminUsername,
+        usernameKey: normalizeUsername(adminUsername),
+        password: await hashPassword(adminPassword),
         role: "admin",
         active: true,
         mustChangePassword: true,
@@ -138,21 +139,21 @@ export class DrumoBackend {
           description: "Construire un rythme stable entre grosse caisse, caisse claire et charleston.",
           content: "1. Réglez le métronome à 70 BPM.\n2. Jouez le charleston en croches.\n3. Placez la caisse claire sur les temps 2 et 4.\n4. Ajoutez la grosse caisse sur les temps 1 et 3.\n\nTravaillez quatre mesures sans accélérer, puis augmentez de 5 BPM.",
           tags: ["groove", "coordination", "débutant"], published: true,
-          authorId: adminId, authorName: "admin", createdAt, updatedAt: createdAt,
+          authorId: adminId, authorName: adminUsername, createdAt, updatedAt: createdAt,
         },
         {
           id: id(), title: "Maîtriser le paradiddle", level: "Intermédiaire",
           description: "Développer régularité, accents et orchestration avec le sticking D G D D / G D G G.",
           content: "Commencez lentement en doubles croches : D G D D | G D G G.\n\nAccentuez la première note de chaque groupe. Quand le mouvement est fluide, déplacez les accents sur les toms et gardez les notes faibles sur la caisse claire.",
           tags: ["rudiments", "paradiddle", "sticking"], published: true,
-          authorId: adminId, authorName: "admin", createdAt, updatedAt: createdAt,
+          authorId: adminId, authorName: adminUsername, createdAt, updatedAt: createdAt,
         },
         {
           id: id(), title: "Créer un fill musical", level: "Intermédiaire",
           description: "Composer des fills lisibles qui servent la transition au lieu de casser le tempo.",
           content: "Réservez d'abord la dernière mesure de votre boucle. Utilisez un motif court, répétez-le sur deux surfaces, puis terminez par une cymbale sur le premier temps suivant. Vérifiez dans Analyser que l'énergie monte progressivement.",
           tags: ["fills", "composition", "dynamique"], published: true,
-          authorId: adminId, authorName: "admin", createdAt, updatedAt: createdAt,
+          authorId: adminId, authorName: adminUsername, createdAt, updatedAt: createdAt,
         },
       ],
       scores: [],
@@ -516,8 +517,10 @@ export class DrumoBackend {
 
 type Handler = (...args: unknown[]) => unknown | Promise<unknown>;
 
-export const registerBackendHandlers = async (ipcMain: IpcMain, userDataPath: string): Promise<DrumoBackend> => {
-  const backend = new DrumoBackend(path.join(userDataPath, "drumo-data.json"));
+export const registerBackendHandlers = async (ipcMain: IpcMain, userDataPath: string, apiUrl = ""): Promise<DrumoBackend | import("./remoteBackend.js").RemoteDrumoBackend> => {
+  const backend = apiUrl
+    ? new (await import("./remoteBackend.js")).RemoteDrumoBackend(apiUrl)
+    : new DrumoBackend(path.join(userDataPath, "drumo-data.json"));
   await backend.initialize();
   const register = (channel: string, handler: Handler) => {
     ipcMain.handle(channel, async (_event, ...args: unknown[]) => {

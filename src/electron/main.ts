@@ -6,6 +6,7 @@ import { renderDrumScore, exportDrumScore, findMuseScore } from "./musescoreServ
 import type { ExportFormat } from "./musescoreService";
 import { registerBackendHandlers } from "./backend";
 import { DrumoUpdateService } from "./updateService";
+import { ConnectionConfig } from "./connectionConfig";
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 
@@ -34,7 +35,10 @@ const createWindow = async (): Promise<void> => {
 
 app.whenReady().then(async () => {
 
-  const backend = await registerBackendHandlers(ipcMain, app.getPath("userData"));
+  const connection = new ConnectionConfig(app.getPath("userData"));
+  await connection.initialize();
+  connection.register(ipcMain);
+  const backend = await registerBackendHandlers(ipcMain, app.getPath("userData"), connection.get().apiUrl);
   const updateService = new DrumoUpdateService(app.getPath("userData"), () => backend.getSystemSettings());
   updateService.register(ipcMain);
 
