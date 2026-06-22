@@ -12,9 +12,9 @@ if (!baseUrl || !/^https:\/\//i.test(baseUrl)) throw new Error("Indiquez l'URL H
 if (!fs.existsSync(installerPath)) throw new Error(`Installateur introuvable : ${installerPath}`);
 
 const releaseHost = new URL(baseUrl).hostname.toLowerCase();
-// GitHub normalizes spaces in uploaded release asset names to dots.
+// Use stable, URL-safe names for GitHub release assets.
 const publicFileName = process.env.DRUMO_RELEASE_FILE_NAME
-  || (releaseHost === "github.com" ? fileName.replace(/ /g, ".") : fileName);
+  || (releaseHost === "github.com" ? fileName.replace(/ /g, "-") : fileName);
 
 const bytes = fs.readFileSync(installerPath);
 const manifest = {
