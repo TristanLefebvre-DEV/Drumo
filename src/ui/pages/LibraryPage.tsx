@@ -8,6 +8,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ScoresLibraryPage } from "./ScoresLibraryPage";
+import { CourseLibraryPage } from "./CourseLibraryPage";
+import { SavedProjectsPage } from "./SavedProjectsPage";
 import * as Tone from "tone";
 import { useProjectStore }       from "../../store/projectStore";
 import { DRUM_KIT_PRESETS }       from "../../audio/drumKitManager";
@@ -765,9 +767,10 @@ const PieceRow = ({
 
 export interface LibraryPageProps {
   onOpenScoreInComposer?: (filePath: string) => void;
+  onOpenSavedProject?: () => void;
 }
 
-export const LibraryPage = ({ onOpenScoreInComposer }: LibraryPageProps = {}) => {
+export const LibraryPage = ({ onOpenScoreInComposer, onOpenSavedProject }: LibraryPageProps = {}) => {
   const {
     activeDrumKitId, activeDrumKit, setDrumKit,
     customPieceSounds, samplePieceFiles,
@@ -775,7 +778,7 @@ export const LibraryPage = ({ onOpenScoreInComposer }: LibraryPageProps = {}) =>
     activeSampleKitId, loadingKitId, loadSampleKit, unloadSampleKit,
   } = useProjectStore();
 
-  const [tab,           setTab]           = useState<"library" | "builder" | "scores">("library");
+  const [tab,           setTab]           = useState<"library" | "builder" | "scores" | "projects" | "courses">("library");
   const [savedKits,     setSavedKits]     = useState<SavedSampleKit[]>(() => sampleKitStore.getAll());
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [editKitId,     setEditKitId]     = useState<string | null>(null);
@@ -854,6 +857,8 @@ export const LibraryPage = ({ onOpenScoreInComposer }: LibraryPageProps = {}) =>
         <Tab label="Bibliothèque" active={tab === "library"} badge={savedKits.length > 0 ? savedKits.length : undefined} onClick={() => setTab("library")} />
         <Tab label="Constructeur de kit" active={tab === "builder"} badge={totalCustom > 0 ? totalCustom : undefined} onClick={() => setTab("builder")} />
         <Tab label="Mes partitions" active={tab === "scores"} onClick={() => setTab("scores")} />
+        <Tab label="Projets Drumo" active={tab === "projects"} onClick={() => setTab("projects")} />
+        <Tab label="Cours" active={tab === "courses"} onClick={() => setTab("courses")} />
       </div>
 
       {/* ── ONGLET : Bibliothèque ── */}
@@ -1153,6 +1158,18 @@ export const LibraryPage = ({ onOpenScoreInComposer }: LibraryPageProps = {}) =>
       {tab === "scores" && (
         <div style={{ flex: 1, overflow: "hidden" }}>
           <ScoresLibraryPage onOpenInComposer={onOpenScoreInComposer} />
+        </div>
+      )}
+
+      {tab === "projects" && (
+        <div style={{ flex: 1, overflow: "hidden" }}>
+          <SavedProjectsPage onOpenInComposer={onOpenSavedProject} />
+        </div>
+      )}
+
+      {tab === "courses" && (
+        <div style={{ flex: 1, overflow: "hidden" }}>
+          <CourseLibraryPage />
         </div>
       )}
 

@@ -13,14 +13,18 @@ import { PracticePage } from "./PracticePage";
 import { LearnPage }    from "./LearnPage";
 import { LibraryPage }  from "./LibraryPage";
 import { SettingsPage } from "./SettingsPage";
+import { AdminPage }    from "./AdminPage";
 import { TransportBar } from "../components/TransportBar";
 import { AppMenuBar }   from "../components/AppMenuBar";
+import { CoachPanel }   from "../components/CoachPanel";
+import { UpdateBanner } from "../components/UpdateBanner";
+import { useAuth }      from "../AuthContext";
 import { useProjectStore } from "../../store/projectStore";
 import "../../store/settingsStore";
 import "../../store/audioSettingsWatcher";
 import type { ParsedDrumProject, QuantizeOptions } from "../../core/types";
 
-export type AppSection = "compose" | "analyze" | "practice" | "learn" | "library" | "settings";
+export type AppSection = "compose" | "analyze" | "practice" | "learn" | "library" | "settings" | "admin";
 
 // ─── Icônes navigation ────────────────────────────────────────────────────────
 
@@ -250,7 +254,8 @@ const SidebarSectionLabel = ({ children }: { children: React.ReactNode }) => (
 
 export const AppShell = () => {
   const [section, setSection] = useState<AppSection>("compose");
-  const { project, loadMidi, loadProjectData, isPlaying, newProject } = useProjectStore();
+  const { user, logout } = useAuth();
+  const { project, loadMidi, loadProjectData, newProject } = useProjectStore();
 
   const handleOpenScoreInComposer = async (filePath: string) => {
     const bytes = await window.drumApp.readMidiBytes(filePath);
@@ -258,6 +263,8 @@ export const AppShell = () => {
     loadMidi({ bytes, filePath });
     setSection("compose");
   };
+
+  const handleOpenSavedProject = () => setSection("compose");
 
   // ── Recent projects (localStorage) ────────────────────────────────────────
   type RecentEntry = { name: string; ts: number };
@@ -358,9 +365,7 @@ export const AppShell = () => {
   };
 
   const projectName   = project?.sourceName ?? null;
-  const bpm           = project?.tempoBpm?.toFixed(0) ?? null;
-  const sig           = project ? `${project.timeSignature.numerator}/${project.timeSignature.denominator}` : null;
-  const showTransport = section !== "settings" && section !== "library";
+  const showTransport = section !== "settings" && section !== "library" && section !== "admin";
 
   return (
     <div
@@ -540,12 +545,25 @@ export const AppShell = () => {
             </svg>
             Nouveau projet
           </button>
+          {user.role === "admin" && (
+            <NavItem
+              label="Administration"
+              active={section === "admin"}
+              onClick={() => setSection("admin")}
+              Icon={IconSettings}
+            />
+          )}
           <NavItem
             label="Réglages"
             active={section === "settings"}
             onClick={() => setSection("settings")}
             Icon={IconSettings}
           />
+          <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "5px 9px 7px", padding: "7px 8px", borderRadius: 7, background: "var(--bg-2)", border: "1px solid var(--sep)" }}>
+            <span style={{ display: "grid", placeItems: "center", width: 24, height: 24, borderRadius: "50%", flexShrink: 0, background: "var(--accent-dim)", color: "var(--accent)", fontSize: 10, fontWeight: 800 }}>{user.username.slice(0, 1).toUpperCase()}</span>
+            <div style={{ minWidth: 0, flex: 1 }}><strong style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", fontSize: 9 }}>{user.username}</strong><small style={{ color: "var(--tx-4)", fontSize: 8 }}>{user.role === "admin" ? "Administrateur" : "Utilisateur"}</small></div>
+            <button type="button" title="Se déconnecter" onClick={() => void logout()} style={{ border: 0, background: "transparent", color: "var(--tx-4)", cursor: "pointer", fontSize: 13 }}>↪</button>
+          </div>
           <div style={{ height: 6 }} />
         </div>
       </nav>
@@ -646,12 +664,15 @@ export const AppShell = () => {
           {section === "analyze"  && <AnalyzePage  />}
           {section === "practice" && <PracticePage />}
           {section === "learn"    && <LearnPage    />}
-          {section === "library"  && <LibraryPage onOpenScoreInComposer={handleOpenScoreInComposer} />}
+          {section === "library"  && <LibraryPage onOpenScoreInComposer={handleOpenScoreInComposer} onOpenSavedProject={handleOpenSavedProject} />}
           {section === "settings" && <SettingsPage />}
+          {section === "admin" && user.role === "admin" && <AdminPage />}
         </div>
       </main>
 
       </div>{/* fin corps sidebar+main */}
+      <CoachPanel />
+      <UpdateBanner />
     </div>
   );
 };

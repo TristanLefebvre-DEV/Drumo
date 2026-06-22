@@ -177,7 +177,6 @@ export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
 
   const setShowHumanize   = (v: boolean) => v ? openPanel("humanize")   : closePanel("humanize");
   const setShowMixer      = (v: boolean) => v ? openPanel("mixer")       : closePanel("mixer");
-  const setShowMetronome  = (v: boolean) => v ? openPanel("metronome")   : closePanel("metronome");
   const setShowKitBalance = (v: boolean) => v ? openPanel("balance")     : closePanel("balance");
   const setShowAiPanel    = (v: boolean) => v ? openPanel("ai")          : closePanel("ai");
 

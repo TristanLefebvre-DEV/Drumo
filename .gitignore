@@ -2,10 +2,13 @@ node_modules/
 dist/
 dist-electron/
 release/
+.builder-cache/
+.packaging-app/
+.packaging-bin/
+.visual-test/
 *.log
 .env
 .env.*
 *.env
 out/
 .claude/
-scripts/

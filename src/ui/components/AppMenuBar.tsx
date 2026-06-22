@@ -411,7 +411,7 @@ export const AppMenuBar = ({
         { kind: "separator", id: "s1" },
         { kind: "item", id: "shortcuts",label: "Raccourcis clavier", disabled: true },
         { kind: "separator", id: "s2" },
-        { kind: "item", id: "about",   label: "À propos de Drumo",  action: () => alert("Drumo — Groove Studio\nVersion 1.0.0") },
+        { kind: "item", id: "about",   label: "À propos de Drumo",  action: () => { void window.drumApp.updates.getState().then((state) => alert(`Drumo — Groove Studio\nVersion ${state.currentVersion}`)); } },
       ],
     },
   ];

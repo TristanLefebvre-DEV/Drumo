@@ -163,7 +163,7 @@ export class MetronomeEngine {
   ): { noise: Tone.NoiseSynth; filter: Tone.Filter } {
     const filter = new Tone.Filter({
       frequency: filterFreq,
-      type: filterType as Tone.FilterType,
+      type: filterType,
       Q: 1.2,
     }).connect(out);
     const noise = new Tone.NoiseSynth({

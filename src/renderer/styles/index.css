@@ -254,7 +254,7 @@ button { border: none; cursor: pointer; }
 
 /* Reduced / no animations */
 [data-anim="none"]    *, [data-anim="none"]  *::before, [data-anim="none"]  *::after { animation-duration: 0ms !important; transition-duration: 0ms !important; }
-[data-anim="reduced"] *, [data-anim="reduced"]*::before,[data-anim="reduced"]*::after { animation-duration: 80ms !important; transition-duration: 80ms !important; }
+[data-anim="reduced"] *, [data-anim="reduced"] *::before, [data-anim="reduced"] *::after { animation-duration: 80ms !important; transition-duration: 80ms !important; }
 
 /* High contrast boost */
 [data-hc="1"] { --sep: rgba(255,255,255,0.18); --sep-2: rgba(255,255,255,0.26); --tx-2: var(--tx-1); }

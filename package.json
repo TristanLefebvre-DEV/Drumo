@@ -1,6 +1,6 @@
 {
   "name": "musecore",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Offline desktop drum score generator from MIDI",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -14,11 +14,17 @@
     "package": "npm run build && electron-builder",
     "dist": "npm run build && electron-builder",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "release:manifest": "node scripts/generate-update-manifest.cjs"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TristanLefebvre-DEV/Drumo.git"
+  },
+  "homepage": "https://github.com/TristanLefebvre-DEV/Drumo",
   "type": "commonjs",
   "build": {
     "appId": "com.drumo.app",
@@ -54,6 +60,8 @@
     },
     "publish": {
       "provider": "github",
+      "owner": "TristanLefebvre-DEV",
+      "repo": "Drumo",
       "releaseType": "release"
     }
   },

@@ -61,9 +61,9 @@ function hexToHsl(hex: string): [number, number, number] {
       case g: hue = ((b - r) / d + 2) / 6; break;
       case b: hue = ((r - g) / d + 4) / 6; break;
     }
-    return [Math.round(hue * 360), Math.round(s * 100), Math.round(l * 100)];
+    return [hue * 360, s * 100, l * 100];
   }
-  return [0, 0, Math.round(l * 100)];
+  return [0, 0, l * 100];
 }
 
 // ─── Génération du gradient plein écran ───────────────────────────────────────

@@ -226,7 +226,11 @@ export class PatternEngine {
         // Prune old keys to prevent unbounded growth
         if (this._scheduledEventTimes.size > 2000) {
           const iter = this._scheduledEventTimes.values();
-          for (let i = 0; i < 500; i++) this._scheduledEventTimes.delete(iter.next().value);
+          for (let i = 0; i < 500; i++) {
+            const next = iter.next();
+            if (next.done) break;
+            this._scheduledEventTimes.delete(next.value);
+          }
         }
 
         // ── Audio ────────────────────────────────────────────────────────────
@@ -398,13 +402,6 @@ function beat(subs: number, accents: StepAccent[]): RhythmBeat {
       active: true,
       accent: accents[i] ?? "normal",
     })),
-  };
-}
-
-function silentBeat(subs: number): RhythmBeat {
-  return {
-    subdivisions: subs,
-    steps: Array.from({ length: subs }, () => ({ active: false, accent: "normal" as StepAccent })),
   };
 }
 

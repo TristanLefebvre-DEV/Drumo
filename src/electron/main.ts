@@ -4,6 +4,8 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import { renderDrumScore, exportDrumScore, findMuseScore } from "./musescoreService";
 import type { ExportFormat } from "./musescoreService";
+import { registerBackendHandlers } from "./backend";
+import { DrumoUpdateService } from "./updateService";
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
 
@@ -15,7 +17,9 @@ const createWindow = async (): Promise<void> => {
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
-      contextIsolation: true
+      contextIsolation: true,
+      sandbox: true,
+      nodeIntegration: false
     }
   });
 
@@ -28,7 +32,11 @@ const createWindow = async (): Promise<void> => {
   await win.loadFile(path.join(__dirname, "../dist/index.html"));
 };
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+
+  const backend = await registerBackendHandlers(ipcMain, app.getPath("userData"));
+  const updateService = new DrumoUpdateService(app.getPath("userData"), () => backend.getSystemSettings());
+  updateService.register(ipcMain);
 
   // ── Importer un fichier MIDI ────────────────────────────────────────────────
   ipcMain.handle("dialog:openMidi", async () => {
@@ -215,6 +223,7 @@ app.whenReady().then(() => {
   });
 
   void createWindow();
+  updateService.start();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) void createWindow();
   });

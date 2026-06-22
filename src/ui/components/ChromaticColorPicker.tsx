@@ -17,14 +17,16 @@ export function hexToHsb(hex: string): [number, number, number] {
     }
   }
   return [
-    Math.round(hue * 360),
-    Math.round(max === 0 ? 0 : (d / max) * 100),
-    Math.round(max * 100),
+    hue * 360,
+    max === 0 ? 0 : (d / max) * 100,
+    max * 100,
   ];
 }
 
 export function hsbToHex(h: number, s: number, b: number): string {
-  const H = h / 360, S = s / 100, V = b / 100;
+  const H = (((h % 360) + 360) % 360) / 360;
+  const S = Math.max(0, Math.min(100, s)) / 100;
+  const V = Math.max(0, Math.min(100, b)) / 100;
   let r = 0, g = 0, bv = 0;
   const i = Math.floor(H * 6);
   const f = H * 6 - i;
@@ -50,7 +52,9 @@ const CX   = SIZE / 2;
 const CY   = SIZE / 2;
 const RING_OUTER = CX - 3;
 const RING_INNER = CX * 0.63;
-const SQ_HALF    = RING_INNER * 0.78;
+// Keep every corner inside the hue ring. The previous square overlapped the
+// ring, so clicks on its corners changed hue instead of saturation/value.
+const SQ_HALF    = (RING_INNER - 5) / Math.SQRT2;
 
 function redraw(canvas: HTMLCanvasElement, h: number, s: number, b: number) {
   const ctx = canvas.getContext("2d");
@@ -172,7 +176,7 @@ export function ChromaticColorPicker({
     let angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
     if (angle < 0)   angle += 360;
     if (angle > 360) angle -= 360;
-    const next: [number, number, number] = [Math.round(angle), hsbRef.current[1], hsbRef.current[2]];
+    const next: [number, number, number] = [angle, hsbRef.current[1], hsbRef.current[2]];
     setHsb(next);
     const hex = hsbToHex(...next);
     setHexInput(hex);
@@ -181,8 +185,8 @@ export function ChromaticColorPicker({
 
   const applySquarePos = useCallback((x: number, y: number) => {
     const left = CX - SQ_HALF, top = CY - SQ_HALF, size = SQ_HALF * 2;
-    const s = Math.round(Math.max(0, Math.min(1, (x - left) / size)) * 100);
-    const b = Math.round(Math.max(0, Math.min(1, 1 - (y - top) / size)) * 100);
+    const s = Math.max(0, Math.min(1, (x - left) / size)) * 100;
+    const b = Math.max(0, Math.min(1, 1 - (y - top) / size)) * 100;
     const next: [number, number, number] = [hsbRef.current[0], s, b];
     setHsb(next);
     const hex = hsbToHex(...next);
@@ -194,12 +198,12 @@ export function ChromaticColorPicker({
     const { x, y } = getCanvasXY(e);
     const dx = x - CX, dy = y - CY;
     const r  = Math.sqrt(dx * dx + dy * dy);
-    if (r >= RING_INNER - 8 && r <= RING_OUTER + 8) {
-      dragTarget.current = "wheel";
-      applyWheelPos(x, y);
-    } else if (x >= CX - SQ_HALF && x <= CX + SQ_HALF && y >= CY - SQ_HALF && y <= CY + SQ_HALF) {
+    if (x >= CX - SQ_HALF && x <= CX + SQ_HALF && y >= CY - SQ_HALF && y <= CY + SQ_HALF) {
       dragTarget.current = "square";
       applySquarePos(x, y);
+    } else if (r >= RING_INNER && r <= RING_OUTER + 3) {
+      dragTarget.current = "wheel";
+      applyWheelPos(x, y);
     }
   }, [getCanvasXY, applyWheelPos, applySquarePos]);
 

@@ -1,8 +1,83 @@
 /// <reference types="vite/client" />
 
 declare global {
+  type DrumoRole = "user" | "admin";
+  interface DrumoUser {
+    id: string;
+    username: string;
+    role: DrumoRole;
+    active: boolean;
+    mustChangePassword: boolean;
+    createdAt: string;
+    updatedAt: string;
+  }
+  interface DrumoSettings { maintenance: boolean; coachEnabled: boolean; updatesEnabled: boolean; updateFeedUrl: string }
+  type DrumoUpdateStatus = "idle" | "checking" | "up-to-date" | "available" | "downloading" | "downloaded" | "disabled" | "not-configured" | "error";
+  interface DrumoUpdateState {
+    status: DrumoUpdateStatus;
+    currentVersion: string;
+    version?: string;
+    notes?: string;
+    publishedAt?: string;
+    downloadedBytes?: number;
+    totalBytes?: number;
+    message?: string;
+  }
+  interface DrumoCourse {
+    id: string;
+    title: string;
+    description: string;
+    content: string;
+    level: string;
+    tags: string[];
+    published: boolean;
+    authorId: string;
+    authorName: string;
+    createdAt: string;
+    updatedAt: string;
+  }
+  interface DrumoScore {
+    id: string;
+    title: string;
+    description: string;
+    authorId: string;
+    authorName: string;
+    createdAt: string;
+    updatedAt: string;
+    midiSize: number;
+  }
+  type BackendResult<T> = { ok: true; data: T } | { ok: false; error: { code: string; message: string } };
+
   interface Window {
     drumApp: {
+      backend: {
+        bootstrap: () => Promise<BackendResult<{ maintenance: boolean }>>;
+        login: (input: { username: string; password: string }) => Promise<BackendResult<{ token: string; user: DrumoUser; settings: DrumoSettings }>>;
+        register: (input: { username: string; password: string }) => Promise<BackendResult<{ token: string; user: DrumoUser; settings: DrumoSettings }>>;
+        me: (token: string) => Promise<BackendResult<{ user: DrumoUser; settings: DrumoSettings }>>;
+        logout: (token: string) => Promise<BackendResult<boolean>>;
+        changePassword: (token: string, input: { currentPassword: string; newPassword: string }) => Promise<BackendResult<DrumoUser>>;
+        listUsers: (token: string) => Promise<BackendResult<DrumoUser[]>>;
+        createUser: (token: string, input: { username: string; password: string; role: DrumoRole }) => Promise<BackendResult<DrumoUser>>;
+        updateUser: (token: string, input: { id: string; role: DrumoRole; active: boolean }) => Promise<BackendResult<DrumoUser>>;
+        listCourses: (token: string) => Promise<BackendResult<DrumoCourse[]>>;
+        saveCourse: (token: string, input: Partial<DrumoCourse> & { title: string; content: string }) => Promise<BackendResult<DrumoCourse>>;
+        deleteCourse: (token: string, courseId: string) => Promise<BackendResult<boolean>>;
+        listScores: (token: string) => Promise<BackendResult<DrumoScore[]>>;
+        saveScore: (token: string, input: { title: string; description: string; midiBytes: number[]; projectData?: unknown }) => Promise<BackendResult<DrumoScore>>;
+        getScore: (token: string, scoreId: string) => Promise<BackendResult<DrumoScore & { midiBytes: number[]; projectData?: unknown }>>;
+        deleteScore: (token: string, scoreId: string) => Promise<BackendResult<boolean>>;
+        getConfig: (token: string) => Promise<BackendResult<DrumoSettings>>;
+        updateConfig: (token: string, input: Partial<DrumoSettings>) => Promise<BackendResult<DrumoSettings>>;
+        coach: (token: string, input: { message: string; context?: Record<string, unknown> }) => Promise<BackendResult<{ answer: string; createdAt: string; mode: "offline" }>>;
+      };
+      updates: {
+        getState: () => Promise<DrumoUpdateState>;
+        check: () => Promise<DrumoUpdateState>;
+        download: () => Promise<DrumoUpdateState>;
+        install: () => Promise<boolean>;
+        onState: (listener: (state: DrumoUpdateState) => void) => () => void;
+      };
       // ── Fichiers MIDI / projet ───────────────────────────────────────────
       openMidiFile: () => Promise<{ filePath: string; bytes: number[] } | null>;
       saveProject: (payload: unknown) => Promise<string | null>;

@@ -656,7 +656,7 @@ const PrecisionDisplay = ({ metrics }: { metrics: PrecisionMetrics }) => {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export const MetronomePanel = ({ embedded = false }: { embedded?: boolean }) => {
+export const MetronomePanel = ({ embedded = false, onClose }: { embedded?: boolean; onClose?: () => void }) => {
   const { togglePanel } = useUiStore();
   const project         = useProjectStore((s) => s.project);
   const projectBpm      = project?.tempoBpm ?? null;
@@ -1012,7 +1012,7 @@ export const MetronomePanel = ({ embedded = false }: { embedded?: boolean }) => 
               style={{ height: 24, padding: "0 8px", borderRadius: 6, fontSize: 10.5, fontWeight: 700, background: "var(--accent-dim)", border: "1px solid var(--accent-line)", color: "var(--accent)", cursor: "pointer" }}>
               🥁
             </button>
-            <button type="button" onClick={() => togglePanel("metronome")}
+            <button type="button" onClick={() => onClose ? onClose() : togglePanel("metronome")}
               style={{ width: 24, height: 24, borderRadius: 5, background: "none", border: "none", color: "var(--tx-3)", cursor: "pointer", fontSize: 16, lineHeight: 1 }}>
               ×
             </button>

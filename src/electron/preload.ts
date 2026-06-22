@@ -1,6 +1,39 @@
 import { contextBridge, ipcRenderer } from "electron";
 
 contextBridge.exposeInMainWorld("drumApp", {
+  // Backend local sécurisé (processus principal uniquement)
+  backend: {
+    bootstrap: () => ipcRenderer.invoke("backend:bootstrap"),
+    login: (input: unknown) => ipcRenderer.invoke("auth:login", input),
+    register: (input: unknown) => ipcRenderer.invoke("auth:register", input),
+    me: (token: string) => ipcRenderer.invoke("auth:me", token),
+    logout: (token: string) => ipcRenderer.invoke("auth:logout", token),
+    changePassword: (token: string, input: unknown) => ipcRenderer.invoke("auth:change-password", token, input),
+    listUsers: (token: string) => ipcRenderer.invoke("admin:list-users", token),
+    createUser: (token: string, input: unknown) => ipcRenderer.invoke("admin:create-user", token, input),
+    updateUser: (token: string, input: unknown) => ipcRenderer.invoke("admin:update-user", token, input),
+    listCourses: (token: string) => ipcRenderer.invoke("course:list", token),
+    saveCourse: (token: string, input: unknown) => ipcRenderer.invoke("admin:save-course", token, input),
+    deleteCourse: (token: string, courseId: string) => ipcRenderer.invoke("admin:delete-course", token, courseId),
+    listScores: (token: string) => ipcRenderer.invoke("score:list", token),
+    saveScore: (token: string, input: unknown) => ipcRenderer.invoke("score:save", token, input),
+    getScore: (token: string, scoreId: string) => ipcRenderer.invoke("score:get", token, scoreId),
+    deleteScore: (token: string, scoreId: string) => ipcRenderer.invoke("score:delete", token, scoreId),
+    getConfig: (token: string) => ipcRenderer.invoke("config:get", token),
+    updateConfig: (token: string, input: unknown) => ipcRenderer.invoke("admin:update-config", token, input),
+    coach: (token: string, input: unknown) => ipcRenderer.invoke("coach:chat", token, input),
+  },
+  updates: {
+    getState: () => ipcRenderer.invoke("updates:get-state"),
+    check: () => ipcRenderer.invoke("updates:check"),
+    download: () => ipcRenderer.invoke("updates:download"),
+    install: () => ipcRenderer.invoke("updates:install"),
+    onState: (listener: (state: unknown) => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, state: unknown) => listener(state);
+      ipcRenderer.on("updates:state", handler);
+      return () => ipcRenderer.removeListener("updates:state", handler);
+    },
+  },
   // ── Fichiers MIDI / projet ────────────────────────────────────────────────
   openMidiFile: () =>
     ipcRenderer.invoke("dialog:openMidi"),
