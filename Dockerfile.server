@@ -4,6 +4,7 @@ COPY package.json package-lock.json tsconfig.server.json ./
 COPY server ./server
 COPY src/electron/backend.ts ./src/electron/backend.ts
 COPY src/electron/backendError.ts ./src/electron/backendError.ts
+COPY src/electron/remoteBackend.ts ./src/electron/remoteBackend.ts
 RUN npm ci --ignore-scripts
 RUN ./node_modules/.bin/tsc -p tsconfig.server.json
 
