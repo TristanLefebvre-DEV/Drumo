@@ -29,6 +29,8 @@ describe("DrumoBackend", () => {
     expect((await remote.login({ username: "admin", password: "admin" })).user.role).toBe("admin");
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[0][0]).toContain("/rest/v1/drumo_state?id=eq.primary");
+    expect(fetchMock.mock.calls[0][1]?.headers).toMatchObject({ apikey: "secret" });
+    expect(fetchMock.mock.calls[0][1]?.headers).not.toHaveProperty("Authorization");
     expect(fetchMock.mock.calls[1][1]).toMatchObject({ method: "POST" });
     fetchMock.mockRestore();
   });

@@ -132,11 +132,16 @@ export class DrumoBackend {
   }
 
   private supabaseHeaders(extra: Record<string, string> = {}): Record<string, string> {
-    return {
+    const headers: Record<string, string> = {
       apikey: this.supabase!.serviceRoleKey,
-      Authorization: `Bearer ${this.supabase!.serviceRoleKey}`,
       ...extra,
     };
+    // Legacy service_role keys are JWTs and can also be used as Bearer tokens.
+    // New sb_secret_* keys authenticate through the apikey header only.
+    if (this.supabase!.serviceRoleKey.startsWith("eyJ")) {
+      headers.Authorization = `Bearer ${this.supabase!.serviceRoleKey}`;
+    }
+    return headers;
   }
 
   private async loadFromSupabase(): Promise<Database | null> {
