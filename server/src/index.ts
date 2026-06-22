@@ -7,11 +7,16 @@ const host = process.env.HOST || "0.0.0.0";
 const dataFile = process.env.DRUMO_DATA_FILE || path.resolve("data", "drumo-data.json");
 const corsOrigin = process.env.DRUMO_CORS_ORIGIN || "";
 const trustProxy = process.env.TRUST_PROXY === "true";
+const supabaseUrl = process.env.SUPABASE_URL?.trim();
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+if (Boolean(supabaseUrl) !== Boolean(supabaseServiceRoleKey)) {
+  throw new Error("SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY doivent être définies ensemble.");
+}
 const maxBodyBytes = 50 * 1024 * 1024;
 const backend = new DrumoBackend(dataFile, {
   adminUsername: process.env.DRUMO_ADMIN_USERNAME,
   adminPassword: process.env.DRUMO_ADMIN_PASSWORD,
-});
+}, supabaseUrl && supabaseServiceRoleKey ? { url: supabaseUrl, serviceRoleKey: supabaseServiceRoleKey } : undefined);
 
 interface RateEntry { count: number; resetsAt: number }
 const rates = new Map<string, RateEntry>();
@@ -118,7 +123,7 @@ const main = async (): Promise<void> => {
   }
   });
 
-  server.listen(port, host, () => console.log(`[drumo-api] écoute sur ${host}:${port}; données: ${dataFile}`));
+  server.listen(port, host, () => console.log(`[drumo-api] écoute sur ${host}:${port}; stockage: ${supabaseUrl ? "Supabase" : dataFile}`));
   const shutdown = () => server.close(() => process.exit(0));
   process.on("SIGINT", shutdown); process.on("SIGTERM", shutdown);
 };

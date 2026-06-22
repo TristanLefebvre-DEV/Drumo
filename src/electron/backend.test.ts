@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -16,7 +16,22 @@ describe("DrumoBackend", () => {
     await backend.initialize();
   });
 
-  afterEach(async () => { await fs.rm(directory, { recursive: true, force: true }); });
+  afterEach(async () => { vi.restoreAllMocks(); await fs.rm(directory, { recursive: true, force: true }); });
+
+  it("initializes and persists through Supabase when configured", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response("[]", { status: 200, headers: { "Content-Type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(null, { status: 201 }));
+    const remote = new DrumoBackend(dataFile, {}, { url: "https://example.supabase.co", serviceRoleKey: "secret" });
+
+    await remote.initialize();
+
+    expect((await remote.login({ username: "admin", password: "admin" })).user.role).toBe("admin");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0][0]).toContain("/rest/v1/drumo_state?id=eq.primary");
+    expect(fetchMock.mock.calls[1][1]).toMatchObject({ method: "POST" });
+    fetchMock.mockRestore();
+  });
 
   it("creates the forced-change admin with a hashed password", async () => {
     const session = await backend.login({ username: "admin", password: "admin" });

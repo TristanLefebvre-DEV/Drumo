@@ -23,6 +23,7 @@ Placez un proxy HTTPS devant le port 8787 et conservez le volume `drumo-data`. V
 - `DRUMO_ADMIN_USERNAME`
 - `DRUMO_ADMIN_PASSWORD`
 - `DRUMO_DATA_FILE` (défaut Docker : `/data/drumo-data.json`)
+- `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY` pour le stockage persistant Supabase (recommandé sur Render)
 - `TRUST_PROXY=true` derrière un proxy
 - `DRUMO_CORS_ORIGIN` seulement si un client web est ajouté
 

@@ -52,6 +52,7 @@ interface Database {
   settings: { maintenance: boolean; coachEnabled: boolean; updatesEnabled: boolean; updateFeedUrl: string };
 }
 interface Session { userId: string; expiresAt: number }
+interface SupabaseStorageConfig { url: string; serviceRoleKey: string }
 
 const now = () => new Date().toISOString();
 const id = () => crypto.randomUUID();
@@ -113,7 +114,39 @@ export class DrumoBackend {
   constructor(
     private readonly dataFile: string,
     private readonly defaults: { adminUsername?: string; adminPassword?: string } = {},
+    private readonly supabase?: SupabaseStorageConfig,
   ) {}
+
+  private normalizeDatabase(parsed: Database): Database {
+    if (parsed.version !== 1 || !Array.isArray(parsed.users)) throw new Error("Format de base invalide");
+    parsed.courses ??= [];
+    parsed.scores ??= [];
+    parsed.settings ??= { maintenance: false, coachEnabled: true, updatesEnabled: true, updateFeedUrl: DEFAULT_UPDATE_FEED_URL };
+    parsed.settings.updatesEnabled ??= true;
+    parsed.settings.updateFeedUrl ??= DEFAULT_UPDATE_FEED_URL;
+    return parsed;
+  }
+
+  private supabaseUrl(pathname: string): string {
+    return `${this.supabase!.url.replace(/\/+$/, "")}${pathname}`;
+  }
+
+  private supabaseHeaders(extra: Record<string, string> = {}): Record<string, string> {
+    return {
+      apikey: this.supabase!.serviceRoleKey,
+      Authorization: `Bearer ${this.supabase!.serviceRoleKey}`,
+      ...extra,
+    };
+  }
+
+  private async loadFromSupabase(): Promise<Database | null> {
+    const response = await fetch(this.supabaseUrl("/rest/v1/drumo_state?id=eq.primary&select=data"), {
+      headers: this.supabaseHeaders({ Accept: "application/json" }),
+    });
+    if (!response.ok) throw new Error(`Supabase a refusé la lecture du stockage Drumo (HTTP ${response.status}).`);
+    const rows = await response.json() as Array<{ data?: Database }>;
+    return rows[0]?.data ? this.normalizeDatabase(rows[0].data) : null;
+  }
 
   private async createDefaultDatabase(): Promise<Database> {
     const adminId = id();
@@ -162,16 +195,17 @@ export class DrumoBackend {
   }
 
   async initialize(): Promise<void> {
+    if (this.supabase) {
+      this.db = await this.loadFromSupabase();
+      if (!this.db) {
+        this.db = await this.createDefaultDatabase();
+        await this.persist();
+      }
+      return;
+    }
     await fs.mkdir(path.dirname(this.dataFile), { recursive: true });
     try {
-      const parsed = JSON.parse(await fs.readFile(this.dataFile, "utf8")) as Database;
-      if (parsed.version !== 1 || !Array.isArray(parsed.users)) throw new Error("Format de base invalide");
-      parsed.courses ??= [];
-      parsed.scores ??= [];
-      parsed.settings ??= { maintenance: false, coachEnabled: true, updatesEnabled: true, updateFeedUrl: DEFAULT_UPDATE_FEED_URL };
-      parsed.settings.updatesEnabled ??= true;
-      parsed.settings.updateFeedUrl ??= DEFAULT_UPDATE_FEED_URL;
-      this.db = parsed;
+      this.db = this.normalizeDatabase(JSON.parse(await fs.readFile(this.dataFile, "utf8")) as Database);
     } catch (error) {
       const missing = (error as NodeJS.ErrnoException).code === "ENOENT";
       if (!missing) {
@@ -191,6 +225,18 @@ export class DrumoBackend {
   private async persist(): Promise<void> {
     const serialized = JSON.stringify(this.data, null, 2);
     this.writeQueue = this.writeQueue.then(async () => {
+      if (this.supabase) {
+        const response = await fetch(this.supabaseUrl("/rest/v1/drumo_state?on_conflict=id"), {
+          method: "POST",
+          headers: this.supabaseHeaders({
+            "Content-Type": "application/json",
+            Prefer: "resolution=merge-duplicates,return=minimal",
+          }),
+          body: JSON.stringify({ id: "primary", data: JSON.parse(serialized), updated_at: now() }),
+        });
+        if (!response.ok) throw new Error(`Supabase a refusé l'écriture du stockage Drumo (HTTP ${response.status}).`);
+        return;
+      }
       const temporary = `${this.dataFile}.tmp`;
       await fs.writeFile(temporary, serialized, { encoding: "utf8", mode: 0o600 });
       await fs.rename(temporary, this.dataFile);
