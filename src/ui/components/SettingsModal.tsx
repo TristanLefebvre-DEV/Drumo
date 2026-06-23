@@ -585,12 +585,12 @@ const AudioSection = () => {
             unit="%"
           />
         </Row>
-        <Row label="Volume métronome">
+        <Row label="Volume métronome" description="Boost jusqu'a 200% pour les sessions avec batterie acoustique">
           <SettingSlider
             value={audio.metronomeVolume}
             onChange={(v) => setAudio({ metronomeVolume: v })}
             min={0}
-            max={100}
+            max={200}
             unit="%"
           />
         </Row>
@@ -611,11 +611,12 @@ const AudioSection = () => {
             value={audio.metronomeSound}
             onChange={(v) => setAudio({ metronomeSound: v })}
             options={[
-              { value: "click",     label: "Click"      },
-              { value: "woodblock", label: "Wood Block" },
-              { value: "beep",      label: "Beep"       },
-              { value: "hihat",     label: "Hi-Hat"     },
-              { value: "rimshot",   label: "Rim Shot"   },
+              { value: "click",       label: "Click"       },
+              { value: "sharp-click", label: "Sharp Click" },
+              { value: "woodblock",   label: "Wood Block"  },
+              { value: "beep",        label: "Beep"        },
+              { value: "hihat",       label: "Hi-Hat"      },
+              { value: "rimshot",     label: "Rim Shot"    },
             ]}
           />
         </Row>

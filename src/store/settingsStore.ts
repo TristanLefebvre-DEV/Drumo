@@ -14,7 +14,7 @@ export type PracticeMode  = "free" | "guided";
 export type AIProc        = "background" | "synchronous";
 export type AudioBufSize  = 256 | 512 | 1024 | 2048;
 export type RenderQuality = "standard" | "high";
-export type MetroSoundId  = "click" | "woodblock" | "beep" | "hihat" | "rimshot";
+export type MetroSoundId  = "click" | "sharp-click" | "woodblock" | "beep" | "hihat" | "rimshot";
 
 export interface AISettings {
   grooveDetection:      boolean;
@@ -54,7 +54,7 @@ export interface NotationSettings {
 
 export interface AudioSettings {
   masterVolume:         number; // 0–100
-  metronomeVolume:      number; // 0–100
+  metronomeVolume:      number; // 0–200
   previewVolume:        number; // 0–100
   countInBars:          0 | 1 | 2 | 4;
   metronomeSound:       MetroSoundId;
@@ -133,7 +133,7 @@ export const DEFAULT_SETTINGS = {
 
   audio: {
     masterVolume:          80,
-    metronomeVolume:       70,
+    metronomeVolume:       120,
     previewVolume:         75,
     countInBars:           0,
     metronomeSound:        "click",
@@ -159,14 +159,14 @@ export const DEFAULT_SETTINGS = {
   } satisfies LearnSettings,
 
   theme: {
-    appearance:      "dark",
-    gradientColor1:  "#0071e3",
-    gradientColor2:  "#bf5af2",
+    appearance:      "light",
+    gradientColor1:  "#007aff",
+    gradientColor2:  "#8e8e93",
     density:         "standard",
     animations:      true,
     highContrast:    false,
     fontSize:        "medium",
-    gradientStyle:   "mesh",
+    gradientStyle:   "flat",
     gradientAngle:   135,
     gradientInvert:  false,
   } satisfies ThemeSettings,

@@ -101,7 +101,7 @@ function buildBodyGradient(
   switch (style) {
 
     case "flat":
-      return isDark ? hsl(h1, si1 * 0.08, 7) : hsl(h1, si1 * 0.06, 94);
+      return isDark ? "#0b0b0d" : "#f5f5f7";
 
     case "subtle":
       return `linear-gradient(${a}deg, ${c1} 0%, ${cm} 45%, ${c2} 100%)`;
@@ -226,11 +226,11 @@ function buildComponentPalette(
 
   if (isDark) {
     return {
-      "--bg-app":   hsl(h, s*0.10, 6.5),
-      "--bg-1":     hsl(h, s*0.11, 9),
-      "--bg-2":     hsl(h, s*0.09, 11.5),
-      "--bg-3":     hsl(h, s*0.10, 14.5),
-      "--bg-4":     hsl(h, s*0.11, 18),
+      "--bg-app":   "#0b0b0d",
+      "--bg-1":     "#141416",
+      "--bg-2":     "#1c1c1e",
+      "--bg-3":     "#242426",
+      "--bg-4":     "#2c2c2e",
       "--bg-hover": hsl(h, s*0.15, 80, 0.06),
       "--bg-sel":   hsl(h, s*0.20, 80, 0.10),
       "--sep":      hsl(h, s*0.15, 80, 0.07),
@@ -243,11 +243,11 @@ function buildComponentPalette(
     };
   }
   return {
-    "--bg-app":   hsl(h, s*0.07, 95),
-    "--bg-1":     hsl(h, s*0.08, 92),
-    "--bg-2":     hsl(h, 0,      100),
-    "--bg-3":     hsl(h, s*0.07, 95),
-    "--bg-4":     hsl(h, s*0.10, 88),
+    "--bg-app":   "#f5f5f7",
+    "--bg-1":     "#fbfbfd",
+    "--bg-2":     "#ffffff",
+    "--bg-3":     "#f2f2f7",
+    "--bg-4":     "#e5e5ea",
     "--bg-hover": hsl(h, s*0.12, 20, 0.05),
     "--bg-sel":   hsl(h, s*0.18, 20, 0.08),
     "--sep":      hsl(h, s*0.08, 20, 0.08),

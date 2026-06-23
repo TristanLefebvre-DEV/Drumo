@@ -15,8 +15,10 @@ import { AudioClock } from "./audioClock";
 // ─── Public types ─────────────────────────────────────────────────────────────
 
 export type MetroSound =
-  | "click" | "woodblock" | "beep" | "hihat" | "rimshot"
+  | "click" | "sharp-click" | "woodblock" | "beep" | "hihat" | "rimshot"
   | "cowbell" | "clave" | "kick" | "snare";
+
+const MAX_METRONOME_VOLUME = 2;
 
 export type MetroSubdivision =
   | "quarter" | "eighth" | "triplet" | "sixteenth"
@@ -195,6 +197,16 @@ export class MetronomeEngine {
         this.subdivSynth = s.noise; this.subdivSynthFilter = s.filter;
         break;
       }
+      case "sharp-click": {
+        this.accentHigh = new Tone.MembraneSynth({ pitchDecay: 0.004, octaves: 1.2, envelope: { attack: 0.001, decay: 0.028, sustain: 0 } }).connect(out);
+        const b = this.makeNoisePair(0.018, "highpass", 9000, out);
+        const s = this.makeNoisePair(0.012, "highpass", 11000, out);
+        b.filter.Q.value = 3.5;
+        s.filter.Q.value = 4.5;
+        this.beatNormal = b.noise; this.beatNormalFilter = b.filter;
+        this.subdivSynth = s.noise; this.subdivSynthFilter = s.filter;
+        break;
+      }
       case "woodblock": {
         this.accentHigh = new Tone.MembraneSynth({ pitchDecay: 0.008, octaves: 1.5, envelope: { attack: 0.001, decay: 0.05, sustain: 0 } }).connect(out);
         const b = this.makeNoisePair(0.055, "bandpass", 3000, out);
@@ -295,6 +307,7 @@ export class MetronomeEngine {
   private get subdivsPerBeat(): number { return SUBDIV_COUNTS[this._subdivision]; }
   private get secsPerSubdiv(): number { return this.secsPerBeat / this.subdivsPerBeat; }
   private get secsPerMeasure(): number { return this.secsPerBeat * this._numerator; }
+  private get accentNote(): string { return this._soundType === "sharp-click" ? "C6" : "C2"; }
 
   private scheduleWindow(windowStart: number, windowEnd: number): void {
     if (!this._isRunning || !this.ctx) return;
@@ -364,14 +377,18 @@ export class MetronomeEngine {
             if (isBeat) {
               if (accentLevel === 2) {
                 // Strong accent — membrane synth
-                this.accentHigh?.triggerAttackRelease("C2", "32n", eventTime, this._volume * this._volumeAccent);
+                this.accentHigh?.triggerAttackRelease(this.accentNote, "32n", eventTime, this._volume * this._volumeAccent);
               } else {
                 // Normal beat
-                this.beatNormal?.triggerAttackRelease("32n", eventTime, this._volume * 0.65);
+                const normalVol = this._soundType === "sharp-click" ? 0.85 : 0.65;
+                this.beatNormal?.triggerAttackRelease("32n", eventTime, this._volume * normalVol);
               }
             } else {
               // Subdivision click
-              this.subdivSynth?.triggerAttackRelease("32n", eventTime, this._volume * this._volumeSubdiv);
+              const subdivVol = this._soundType === "sharp-click"
+                ? Math.min(1, this._volumeSubdiv * 1.15)
+                : this._volumeSubdiv;
+              this.subdivSynth?.triggerAttackRelease("32n", eventTime, this._volume * subdivVol);
             }
           }
         }
@@ -531,7 +548,7 @@ export class MetronomeEngine {
 
   get volume(): number { return this._volume; }
   setVolume(v: number): void {
-    this._volume = Math.max(0, Math.min(1, v));
+    this._volume = Math.max(0, Math.min(MAX_METRONOME_VOLUME, v));
     if (this.masterGain) this.masterGain.gain.rampTo(this._volume, 0.05);
   }
 
@@ -592,9 +609,10 @@ export class MetronomeEngine {
     if (this._visualOnly || level === 0) return;
     const vol = this._volume;
     if (level === 2) {
-      this.accentHigh?.triggerAttackRelease("C2", "32n", time, vol * this._volumeAccent);
+      this.accentHigh?.triggerAttackRelease(this.accentNote, "32n", time, vol * this._volumeAccent);
     } else {
-      this.beatNormal?.triggerAttackRelease("32n", time, vol * 0.65);
+      const normalVol = this._soundType === "sharp-click" ? 0.85 : 0.65;
+      this.beatNormal?.triggerAttackRelease("32n", time, vol * normalVol);
     }
   }
 

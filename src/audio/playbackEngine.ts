@@ -84,7 +84,7 @@ export class PlaybackEngine {
       envelope: { attack: 0.001, decay: 0.055, sustain: 0 },
     }).connect(this.masterGain);
 
-    this.clickBeatFilter = new Tone.Filter({ frequency: 4000, type: "highpass", Q: 1.2 }).connect(this.masterGain);
+    this.clickBeatFilter = new Tone.Filter({ frequency: 6500, type: "highpass", Q: 2.2 }).connect(this.masterGain);
     this.clickBeat = new Tone.NoiseSynth({
       noise: { type: "white" },
       envelope: { attack: 0.001, decay: 0.035, sustain: 0, release: 0.004 },
@@ -128,9 +128,9 @@ export class PlaybackEngine {
       const beatTime = this.startAudioTime + (tick - this.startTick) / ticksPerSec;
       if (beatTime < from) continue;
       if (tick % ticksPerMeasure === 0) {
-        this.clickAccent.triggerAttackRelease("C2", "32n", beatTime, 0.65);
+        this.clickAccent.triggerAttackRelease("C4", "32n", beatTime, 0.95);
       } else {
-        this.clickBeat.triggerAttackRelease("32n", beatTime, 0.35);
+        this.clickBeat.triggerAttackRelease("32n", beatTime, 0.62);
       }
     }
     this.metroScheduledUpTo = to;
@@ -144,9 +144,9 @@ export class PlaybackEngine {
     for (let i = 0; i < beats; i++) {
       const time = startTime + i * secPerBeat;
       if (i % timeSignature.numerator === 0) {
-        this.clickAccent.triggerAttackRelease("C2", "32n", time, 0.72);
+        this.clickAccent.triggerAttackRelease("C4", "32n", time, 1);
       } else {
-        this.clickBeat.triggerAttackRelease("32n", time, 0.42);
+        this.clickBeat.triggerAttackRelease("32n", time, 0.72);
       }
     }
   }

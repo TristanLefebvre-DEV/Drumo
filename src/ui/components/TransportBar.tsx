@@ -235,15 +235,16 @@ export const TransportBar = () => {
       flexShrink: 0,
       background: "var(--bg-2)",
       borderBottom: "1px solid var(--sep)",
+      boxShadow: "0 1px 0 rgba(255,255,255,0.55) inset",
     }}>
       {/* ── Main row ── */}
       <div style={{
         display: "flex",
         flexWrap: "wrap" as const,
         alignItems: "center",
-        gap: 4,
-        padding: "4px 14px",
-        minHeight: 46,
+        gap: 6,
+        padding: "7px 18px",
+        minHeight: 54,
       }}>
 
         {/* Playback controls */}
@@ -276,8 +277,8 @@ export const TransportBar = () => {
         {/* Position display */}
         <div style={{
           display: "flex", alignItems: "center", gap: 7,
-          padding: "3px 10px", borderRadius: 6,
-          background: "var(--bg-3)", border: "1px solid var(--sep)",
+          padding: "4px 12px", borderRadius: 10,
+          background: "var(--bg-1)", border: "1px solid var(--sep)",
           flexShrink: 0, minWidth: 76,
         }}>
           <span style={{
@@ -394,8 +395,8 @@ export const TransportBar = () => {
             <>
               <div style={{
                 display: "flex", alignItems: "center", gap: 5,
-                padding: "0 10px", borderRadius: 6, height: 26,
-                background: "var(--bg-3)", border: "1px solid var(--sep)", flexShrink: 0,
+                padding: "0 12px", borderRadius: 10, height: 30,
+                background: "var(--bg-1)", border: "1px solid var(--sep)", flexShrink: 0,
               }}>
                 <span style={{ fontSize: 9, color: "var(--tx-4)", fontWeight: 600, letterSpacing: "0.09em", textTransform: "uppercase" as const }}>BPM</span>
                 <span style={{
@@ -409,9 +410,9 @@ export const TransportBar = () => {
               <button
                 type="button"
                 style={{
-                  display: "flex", alignItems: "center", gap: 4, height: 26,
-                  padding: "0 9px", borderRadius: 6,
-                  background: "var(--bg-3)", border: "1px solid var(--sep)",
+                  display: "flex", alignItems: "center", gap: 4, height: 30,
+                  padding: "0 10px", borderRadius: 10,
+                  background: "var(--bg-1)", border: "1px solid var(--sep)",
                   color: "var(--tx-2)", fontSize: 12, fontWeight: 600, cursor: "pointer",
                   fontFamily: "monospace", flexShrink: 0, transition: "background 0.12s",
                 }}

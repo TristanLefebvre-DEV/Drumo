@@ -156,36 +156,39 @@ const NavItem = ({
     onClick={onClick}
     title={label}
     style={{
-      width: "calc(100% - 8px)",
-      height: 34,
+      width: "calc(100% - 16px)",
+      height: 36,
       display: "flex",
       alignItems: "center",
-      gap: 9,
-      padding: "0 10px 0 14px",
+      gap: 10,
+      margin: "1px 8px",
+      padding: "0 12px",
       position: "relative",
-      background: active ? "var(--accent-dim)" : "transparent",
-      border: "none",
+      background: active ? "var(--bg-2)" : "transparent",
+      border: `1px solid ${active ? "var(--sep)" : "transparent"}`,
       cursor: "pointer",
-      transition: "background 0.13s ease",
-      color: active ? "var(--accent)" : "var(--tx-3)",
-      borderRadius: "0 8px 8px 0",
+      transition: "background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease",
+      color: active ? "var(--tx-1)" : "var(--tx-3)",
+      borderRadius: 10,
+      boxShadow: active ? "var(--shadow-sm)" : "none",
     }}
     onMouseEnter={(e) => {
       if (!active) (e.currentTarget as HTMLElement).style.background = "var(--bg-hover)";
     }}
     onMouseLeave={(e) => {
-      (e.currentTarget as HTMLElement).style.background = active ? "var(--accent-dim)" : "transparent";
+      (e.currentTarget as HTMLElement).style.background = active ? "var(--bg-2)" : "transparent";
     }}
   >
     {active && (
       <div style={{
-        position: "absolute", left: 0, top: "20%", bottom: "20%",
-        width: 2.5, borderRadius: "0 2px 2px 0", background: "var(--accent)",
+        position: "absolute", left: 6, top: "50%",
+        width: 4, height: 4, borderRadius: "50%", background: "var(--accent)",
+        transform: "translateY(-50%)",
       }} />
     )}
     <Icon />
     <span style={{
-      fontSize: 12,
+      fontSize: 12.5,
       fontWeight: active ? 600 : 400,
       letterSpacing: "0.01em",
       userSelect: "none",
@@ -204,17 +207,18 @@ const LibItem = ({
     type="button"
     onClick={onClick}
     style={{
-      width: "calc(100% - 8px)",
+      width: "calc(100% - 16px)",
       height: 28,
       display: "flex",
       alignItems: "center",
       gap: 8,
-      padding: "0 10px 0 28px",
+      margin: "1px 8px",
+      padding: "0 10px 0 30px",
       background: "transparent",
       border: "none",
       cursor: "pointer",
       color: "var(--tx-3)",
-      borderRadius: "0 6px 6px 0",
+      borderRadius: 8,
       transition: "background 0.1s, color 0.1s",
     }}
     onMouseEnter={(e) => {
@@ -389,36 +393,36 @@ export const AppShell = () => {
       <nav
         className="glass"
         style={{
-          width: 200,
+          width: 220,
           flexShrink: 0,
           display: "flex",
           flexDirection: "column",
-          background: "var(--bg-1)",
+          background: "var(--bg-3)",
           borderRight: "1px solid var(--sep)",
           overflow: "hidden",
         }}
       >
         {/* Brand */}
         <div style={{
-          height: 52,
+          height: 64,
           display: "flex",
           alignItems: "center",
           gap: 10,
-          padding: "0 14px",
+          padding: "0 18px",
           borderBottom: "1px solid var(--sep)",
           flexShrink: 0,
         }}>
           <AppLogo />
           <div>
             <div style={{
-              fontSize: 13,
+              fontSize: 14,
               fontWeight: 800,
               letterSpacing: "0.08em",
               color: "var(--tx-1)",
               lineHeight: 1,
             }}>DRUMO</div>
             <div style={{
-              fontSize: 8,
+              fontSize: 9,
               fontWeight: 500,
               letterSpacing: "0.18em",
               color: "var(--tx-4)",
@@ -464,17 +468,18 @@ export const AppShell = () => {
                   key={name}
                   type="button"
                   style={{
-                    width: "calc(100% - 8px)",
+                    width: "calc(100% - 16px)",
                     minHeight: 38,
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "flex-start",
                     justifyContent: "center",
-                    padding: "4px 10px 4px 28px",
+                    margin: "1px 8px",
+                    padding: "5px 10px 5px 30px",
                     background: "transparent",
                     border: "none",
                     cursor: "pointer",
-                    borderRadius: "0 6px 6px 0",
+                    borderRadius: 8,
                     transition: "background 0.1s",
                     overflow: "hidden",
                     gap: 1,
@@ -513,18 +518,18 @@ export const AppShell = () => {
             type="button"
             onClick={() => { newProject(); setSection("compose"); }}
             style={{
-              width: "calc(100% - 16px)",
-              margin: "8px 8px 4px",
-              height: 30,
+              width: "calc(100% - 20px)",
+              margin: "10px 10px 6px",
+              height: 34,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               gap: 6,
-              borderRadius: 7,
-              fontSize: 11,
-              fontWeight: 500,
+              borderRadius: 10,
+              fontSize: 12,
+              fontWeight: 600,
               background: "var(--bg-2)",
-              color: "var(--tx-2)",
+              color: "var(--tx-1)",
               border: "1px solid var(--sep-2)",
               cursor: "pointer",
               transition: "background 0.12s, color 0.12s",
@@ -537,7 +542,7 @@ export const AppShell = () => {
             onMouseLeave={(e) => {
               const el = e.currentTarget as HTMLElement;
               el.style.background = "var(--bg-2)";
-              el.style.color = "var(--tx-2)";
+              el.style.color = "var(--tx-1)";
             }}
           >
             <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
@@ -559,7 +564,7 @@ export const AppShell = () => {
             onClick={() => setSection("settings")}
             Icon={IconSettings}
           />
-          <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "5px 9px 7px", padding: "7px 8px", borderRadius: 7, background: "var(--bg-2)", border: "1px solid var(--sep)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 9, margin: "8px 10px 10px", padding: "8px 9px", borderRadius: 12, background: "var(--bg-2)", border: "1px solid var(--sep)", boxShadow: "var(--shadow-sm)" }}>
             <span style={{ display: "grid", placeItems: "center", width: 24, height: 24, borderRadius: "50%", flexShrink: 0, background: "var(--accent-dim)", color: "var(--accent)", fontSize: 10, fontWeight: 800 }}>{user.username.slice(0, 1).toUpperCase()}</span>
             <div style={{ minWidth: 0, flex: 1 }}><strong style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", fontSize: 9 }}>{user.username}</strong><small style={{ color: "var(--tx-4)", fontSize: 8 }}>{user.role === "admin" ? "Administrateur" : "Utilisateur"}</small></div>
             <button type="button" title="Se déconnecter" onClick={() => void logout()} style={{ border: 0, background: "transparent", color: "var(--tx-4)", cursor: "pointer", fontSize: 13 }}>↪</button>
@@ -575,13 +580,13 @@ export const AppShell = () => {
         <div
           className="glass-sm"
           style={{
-            height: 44,
+            height: 52,
             flexShrink: 0,
             display: "flex",
             alignItems: "center",
             borderBottom: "1px solid var(--sep)",
-            background: "var(--bg-1)",
-            padding: "0 14px",
+            background: "var(--bg-2)",
+            padding: "0 18px",
             position: "relative",
           }}
         >
@@ -598,8 +603,9 @@ export const AppShell = () => {
             {projectName ? (
               <div style={{
                 display: "flex", alignItems: "center", gap: 6,
-                height: 28, padding: "0 10px 0 9px", borderRadius: 7,
-                background: "var(--bg-3)", border: "1px solid var(--sep-2)",
+                height: 30, padding: "0 12px 0 10px", borderRadius: 10,
+                background: "var(--bg-1)", border: "1px solid var(--sep)",
+                boxShadow: "var(--shadow-sm)",
                 cursor: "default", maxWidth: 360,
               }}>
                 <svg width="11" height="13" viewBox="0 0 11 13" fill="none">

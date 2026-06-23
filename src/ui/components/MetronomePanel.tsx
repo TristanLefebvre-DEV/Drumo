@@ -52,15 +52,16 @@ const SUBDIV_OPTS: { id: MetroSubdivision; label: string; symbol: string }[] = [
 ];
 
 const SOUND_OPTS: { id: MetroSound; label: string }[] = [
-  { id: "click",     label: "Clic"     },
-  { id: "rimshot",   label: "Rimshot"  },
-  { id: "hihat",     label: "Hi-Hat"   },
-  { id: "kick",      label: "Kick"     },
-  { id: "snare",     label: "Snare"    },
-  { id: "cowbell",   label: "Cowbell"  },
-  { id: "clave",     label: "Clave"    },
-  { id: "woodblock", label: "Bois"     },
-  { id: "beep",      label: "Bip"      },
+  { id: "click",       label: "Clic"        },
+  { id: "sharp-click", label: "Sharp Click" },
+  { id: "rimshot",     label: "Rimshot"     },
+  { id: "hihat",       label: "Hi-Hat"      },
+  { id: "kick",        label: "Kick"        },
+  { id: "snare",       label: "Snare"       },
+  { id: "cowbell",     label: "Cowbell"     },
+  { id: "clave",       label: "Clave"       },
+  { id: "woodblock",   label: "Bois"        },
+  { id: "beep",        label: "Bip"         },
 ];
 
 const TEMPO_LABELS: [number, string][] = [
@@ -1187,7 +1188,7 @@ export const MetronomePanel = ({ embedded = false, onClose }: { embedded?: boole
 
             <div>
               <SecLabel>Volumes</SecLabel>
-              <SliderRow label="Master" value={Math.round(vol * 100)} min={0} max={100} valStr={`${Math.round(vol * 100)}%`}
+              <SliderRow label="Master" value={Math.round(vol * 100)} min={0} max={200} valStr={`${Math.round(vol * 100)}%`}
                 onChange={(v) => { const n = v / 100; metronomeEngine.setVolume(n); setVol(n); }} />
               <SliderRow label="Accent fort" value={Math.round(volAcc * 100)} min={0} max={100} valStr={`${Math.round(volAcc * 100)}%`} color="var(--c-yellow)"
                 onChange={(v) => { const n = v / 100; metronomeEngine.setVolumeAccent(n); setVolAcc(n); }} />

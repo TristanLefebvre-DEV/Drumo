@@ -232,12 +232,12 @@ export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
       <div style={{
         display: "flex",
         alignItems: "center",
-        gap: 4,
-        padding: "0 12px",
+        gap: 6,
+        padding: "0 16px",
         borderBottom: "1px solid var(--sep)",
-        background: "var(--bg-1)",
+        background: "var(--bg-2)",
         flexShrink: 0,
-        height: 36,
+        height: 44,
       }}>
         {/* Kit selector */}
         <div style={{ flexShrink: 0 }}>
@@ -255,8 +255,8 @@ export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
             value={quantizeOptions.grid}
             onChange={(e) => setGrid(e.target.value as QuantizeGrid)}
             style={{
-              padding: "2px 5px", borderRadius: 5, fontSize: 11,
-              background: "var(--bg-3)", color: "var(--tx-2)",
+              padding: "3px 8px", borderRadius: 8, fontSize: 11.5,
+              background: "var(--bg-1)", color: "var(--tx-2)",
               border: "1px solid var(--sep)", cursor: "pointer", outline: "none",
             }}
           >
@@ -325,10 +325,10 @@ export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
         display: "flex",
         alignItems: "stretch",
         borderBottom: "1px solid var(--sep)",
-        background: "var(--bg-2)",
+        background: "var(--bg-1)",
         flexShrink: 0,
-        height: 34,
-        padding: "0 8px",
+        height: 42,
+        padding: "0 12px",
         gap: 2,
       }}>
         {VIEW_TABS.map(({ id, label }) => {
@@ -340,11 +340,11 @@ export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
               onClick={() => setViewMode(id)}
               style={{
                 height: "100%",
-                padding: "0 14px",
+                padding: "0 16px",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: 12,
+                fontSize: 12.5,
                 fontWeight: active ? 600 : 400,
                 color: active ? "var(--tx-1)" : "var(--tx-3)",
                 background: "transparent",
@@ -389,7 +389,7 @@ export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
 
       {/* ── Energy timeline ── */}
       {project && rhythm && showEnergyTimeline && energyFlow && energyFlow.measures.length > 0 && (
-        <div style={{ flexShrink: 0, padding: "4px 12px", borderBottom: "1px solid var(--sep)", background: "var(--bg-1)" }}>
+        <div style={{ flexShrink: 0, padding: "6px 16px", borderBottom: "1px solid var(--sep)", background: "var(--bg-2)" }}>
           <EnergyTimeline
             energyFlow={energyFlow} sections={sections}
             activeTick={activeTick} totalMeasures={rhythm.measures.length}
@@ -401,7 +401,7 @@ export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
 
       {/* ── Heatmap controls ── */}
       {project && (heatmap.enabled || preview.enabled) && (
-        <div style={{ flexShrink: 0, borderBottom: "1px solid var(--sep)", background: "var(--bg-1)" }}>
+        <div style={{ flexShrink: 0, borderBottom: "1px solid var(--sep)", background: "var(--bg-2)" }}>
           <HeatmapControls
             heatmapEnabled={heatmap.enabled} sensitivity={heatmap.sensitivity}
             stats={velocityStats} previewEnabled={preview.enabled} previewVolume={preview.volume}
@@ -413,7 +413,7 @@ export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
 
       {/* ── Section timeline + isolation ── */}
       {project && rhythm && isScoreView && (
-        <div style={{ flexShrink: 0, background: "var(--bg-1)" }}>
+        <div style={{ flexShrink: 0, background: "var(--bg-2)" }}>
           {showSectionTimeline && sections.length > 0 && (
             <div style={{ padding: "4px 12px", borderBottom: "1px solid var(--sep)" }}>
               <SectionTimeline
@@ -430,7 +430,7 @@ export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
       <div style={{ flex: 1, minHeight: 0, display: "flex", overflow: "hidden" }}>
 
         {/* Primary view */}
-        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden", padding: 8, gap: 8 }}>
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden", padding: 14, gap: 12 }}>
           {project && rhythm ? (
             isScoreView ? (
               <>
@@ -440,7 +440,7 @@ export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
                 )}
               </>
             ) : viewMode === "grid" ? (
-              <div style={{ flex: 1, overflow: "auto", borderRadius: 8, background: "var(--bg-2)", border: "1px solid var(--sep)" }}>
+              <div style={{ flex: 1, overflow: "auto", borderRadius: 14, background: "var(--bg-2)", border: "1px solid var(--sep)", boxShadow: "var(--shadow-sm)" }}>
                 <DrumGrid
                   project={project} quantizeGrid={quantizeOptions.grid}
                   activeTick={activeTick} heatmap={heatmap} previewEnabled={preview.enabled}
