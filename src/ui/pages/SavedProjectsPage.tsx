@@ -1,14 +1,33 @@
 import { useCallback, useEffect, useState } from "react";
 import { exportProjectToMidiBytes } from "../../core/midiExporter";
 import type { ParsedDrumProject, QuantizeOptions } from "../../core/types";
+import type { DrumKitId, DrumKitMixer } from "../../audio/drumKitManager";
 import { useProjectStore } from "../../store/projectStore";
 import { unwrapBackend, useAuth } from "../AuthContext";
 
-interface StoredProjectData { project?: ParsedDrumProject; quantizeOptions?: Partial<QuantizeOptions> }
+interface StoredProjectData {
+  project?: ParsedDrumProject;
+  quantizeOptions?: Partial<QuantizeOptions>;
+  mixSnapshot?: {
+    activeDrumKitId?: string;
+    drumMixer?: Partial<DrumKitMixer>;
+    drumMixerMute?: Partial<Record<keyof DrumKitMixer, boolean>>;
+    drumMixerSolo?: Partial<Record<keyof DrumKitMixer, boolean>>;
+  };
+}
 
 export const SavedProjectsPage = ({ onOpenInComposer }: { onOpenInComposer?: () => void }) => {
   const { token, user } = useAuth();
-  const { project, quantizeOptions, loadMidi, loadProjectData } = useProjectStore();
+  const {
+    project,
+    quantizeOptions,
+    loadMidi,
+    loadProjectData,
+    setDrumKit,
+    patchDrumMixer,
+    setMixerChannelMute,
+    setMixerChannelSolo,
+  } = useProjectStore();
   const [scores, setScores] = useState<DrumoScore[]>([]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -43,8 +62,19 @@ export const SavedProjectsPage = ({ onOpenInComposer }: { onOpenInComposer?: () 
     try {
       const stored = unwrapBackend(await window.drumApp.backend.getScore(token, score.id));
       const data = stored.projectData as StoredProjectData | undefined;
-      if (data?.project && Array.isArray(data.project.hits)) loadProjectData({ project: data.project, quantizeOptions: data.quantizeOptions });
-      else loadMidi({ bytes: stored.midiBytes, filePath: `${stored.title}.mid` });
+      if (data?.project && Array.isArray(data.project.hits)) {
+        loadProjectData({ project: data.project, quantizeOptions: data.quantizeOptions });
+        if (data.mixSnapshot) {
+          if (data.mixSnapshot.activeDrumKitId) setDrumKit(data.mixSnapshot.activeDrumKitId as DrumKitId);
+          if (data.mixSnapshot.drumMixer) patchDrumMixer(data.mixSnapshot.drumMixer);
+          for (const [channel, muted] of Object.entries(data.mixSnapshot.drumMixerMute ?? {}) as [keyof DrumKitMixer, boolean][]) {
+            setMixerChannelMute(channel, muted);
+          }
+          for (const [channel, soloed] of Object.entries(data.mixSnapshot.drumMixerSolo ?? {}) as [keyof DrumKitMixer, boolean][]) {
+            setMixerChannelSolo(channel, soloed);
+          }
+        }
+      } else loadMidi({ bytes: stored.midiBytes, filePath: `${stored.title}.mid` });
       setNotice(`« ${stored.title} » est ouvert dans Composer.`);
       onOpenInComposer?.();
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Ouverture impossible."); }

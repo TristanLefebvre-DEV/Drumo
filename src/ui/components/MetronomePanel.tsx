@@ -21,7 +21,7 @@ import {
 } from "../../audio/metronomeEngine";
 import type {
   MetroSound, MetroSubdivision, MetroSignature, MetroPreset,
-  AccentLevel, MetroTrainingConfig, SilenceTrainingConfig,
+  AccentLevel, MetroTrainingConfig, SilenceTrainingConfig, MetroSoundRef,
 } from "../../audio/metronomeEngine";
 import type { PrecisionMetrics } from "../../audio/precisionEngine";
 import { useProjectStore } from "../../store/projectStore";
@@ -50,6 +50,16 @@ const SUBDIV_OPTS: { id: MetroSubdivision; label: string; symbol: string }[] = [
   { id: "sextolet",  label: "Sextolets",      symbol: "6"  },
   { id: "septolet",  label: "Septolets",      symbol: "7"  },
 ];
+
+const SUBDIV_COUNTS: Record<MetroSubdivision, number> = {
+  quarter: 1,
+  eighth: 2,
+  triplet: 3,
+  sixteenth: 4,
+  quintolet: 5,
+  sextolet: 6,
+  septolet: 7,
+};
 
 const SOUND_OPTS: { id: MetroSound; label: string }[] = [
   { id: "click",       label: "Clic"        },
@@ -668,6 +678,8 @@ export const MetronomePanel = ({ embedded = false, onClose }: { embedded?: boole
   const [sig,        setSig]        = useState<MetroSignature>(metronomeEngine.signature);
   const [subdiv,     setSubdiv]     = useState<MetroSubdivision>(metronomeEngine.subdivision);
   const [sound,      setSound]      = useState<MetroSound>(metronomeEngine.soundType);
+  const [subSounds,  setSubSounds]  = useState<MetroSoundRef[]>(metronomeEngine.subdivisionSounds);
+  const [draftSubSounds, setDraftSubSounds] = useState<MetroSoundRef[]>(metronomeEngine.subdivisionSounds);
   const [vol,        setVol]        = useState(metronomeEngine.volume);
   const [volAcc,     setVolAcc]     = useState(metronomeEngine.volumeAccent);
   const [volSub,     setVolSub]     = useState(metronomeEngine.volumeSubdiv);
@@ -689,9 +701,10 @@ export const MetronomePanel = ({ embedded = false, onClose }: { embedded?: boole
   const [tapCnt,       setTapCnt]       = useState(0);
   const [tapFlash,     setTapFlash]     = useState(false);
   const [userPresets,  setUserPresets]  = useState<MetroPreset[]>(() => loadUserMetroPresets());
+  const [customSounds, setCustomSounds] = useState<DrumoMetronomeSound[]>([]);
   const [precisionOn,  setPrecisionOn]  = useState(false);
   const [metrics,      setMetrics]      = useState<PrecisionMetrics | null>(null);
-  const [activeTab,    setActiveTab]    = useState<"tempo" | "training" | "presets" | "advanced">("tempo");
+  const [activeTab,    setActiveTab]    = useState<"tempo" | "sounds" | "training" | "presets" | "advanced">("tempo");
 
   const tapDetector = useRef(new TapTempoDetector());
   const bpmRef      = useRef(bpm);
@@ -712,6 +725,10 @@ export const MetronomePanel = ({ embedded = false, onClose }: { embedded?: boole
     metronomeEngine.onBpmChange((b) => setBpmSt(b));
     metronomeEngine.onStop(() => { setRunning(false); setActiveBeat(-1); setInCountIn(false); });
   }, [precisionOn]);
+
+  useEffect(() => {
+    void window.drumApp.metronome.listSounds().then(setCustomSounds).catch(() => setCustomSounds([]));
+  }, []);
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
   useEffect(() => {
@@ -766,17 +783,54 @@ export const MetronomePanel = ({ embedded = false, onClose }: { embedded?: boole
     setPattern(p);
   }, []);
 
+  const applySubSound = (index: number, ref: MetroSoundRef) => {
+    setDraftSubSounds((prev) => {
+      const next = [...prev];
+      next[index] = ref;
+      return next;
+    });
+  };
+
+  const applyDraftSubSounds = () => {
+    metronomeEngine.setSubdivisionSounds(draftSubSounds);
+    setSubSounds(metronomeEngine.subdivisionSounds);
+  };
+
+  const importCustomSound = async () => {
+    const item = await window.drumApp.metronome.importSound();
+    if (!item) return;
+    setCustomSounds((prev) => [...prev, item]);
+  };
+
+  const deleteCustomSound = async (id: string) => {
+    await window.drumApp.metronome.deleteSound(id);
+    setCustomSounds((prev) => prev.filter((item) => item.id !== id));
+    const fallback: MetroSoundRef = { type: "builtin", sound };
+    metronomeEngine.setSubdivisionSounds(metronomeEngine.subdivisionSounds.map((ref) => ref.type === "custom" && ref.id === id ? fallback : ref));
+    setSubSounds(metronomeEngine.subdivisionSounds);
+    setDraftSubSounds(metronomeEngine.subdivisionSounds);
+  };
+
+  const soundLabel = (ref: MetroSoundRef) => {
+    if (ref.type === "custom") return ref.name;
+    return SOUND_OPTS.find((item) => item.id === ref.sound)?.label ?? ref.sound;
+  };
+  const hasDraftSubSoundChanges = JSON.stringify(draftSubSounds) !== JSON.stringify(subSounds);
+
   const applyPreset = (p: MetroPreset) => {
     metronomeEngine.setBpm(p.bpm);
     metronomeEngine.setSignature(p.signature);
     metronomeEngine.setSubdivision(p.subdivision);
     metronomeEngine.setSoundType(p.soundType);
+    if (p.subdivisionSounds) metronomeEngine.setSubdivisionSounds(p.subdivisionSounds);
     if (p.accentPattern)              metronomeEngine.setAccentPattern(p.accentPattern);
     if (p.volumeAccent !== undefined) metronomeEngine.setVolumeAccent(p.volumeAccent);
     if (p.volumeSubdiv !== undefined) metronomeEngine.setVolumeSubdiv(p.volumeSubdiv);
     if (p.training)                   metronomeEngine.setTraining(p.training);
     if (p.silence)                    metronomeEngine.setSilence(p.silence);
     setBpmSt(p.bpm); setSig(p.signature); setSubdiv(p.subdivision); setSound(p.soundType);
+    setSubSounds(metronomeEngine.subdivisionSounds);
+    setDraftSubSounds(metronomeEngine.subdivisionSounds);
     setPattern(p.accentPattern ?? []);
     if (p.volumeAccent !== undefined) setVolAcc(p.volumeAccent);
     if (p.volumeSubdiv !== undefined) setVolSub(p.volumeSubdiv);
@@ -787,7 +841,7 @@ export const MetronomePanel = ({ embedded = false, onClose }: { embedded?: boole
   const savePreset = () => {
     const name = prompt("Nom du preset :");
     if (!name?.trim()) return;
-    const saved = saveMetroPreset({ name: name.trim(), bpm, signature: sig, subdivision: subdiv, soundType: sound, accentPattern: pattern, volumeAccent: volAcc, volumeSubdiv: volSub, training, silence });
+    const saved = saveMetroPreset({ name: name.trim(), bpm, signature: sig, subdivision: subdiv, soundType: sound, subdivisionSounds: subSounds, accentPattern: pattern, volumeAccent: volAcc, volumeSubdiv: volSub, training, silence });
     setUserPresets((prev) => [...prev, saved]);
   };
 
@@ -931,7 +985,7 @@ export const MetronomePanel = ({ embedded = false, onClose }: { embedded?: boole
                 const active = subdiv === id;
                 return (
                   <button key={id} type="button" title={label}
-                    onClick={() => { metronomeEngine.setSubdivision(id); setSubdiv(id); }}
+                    onClick={() => { metronomeEngine.setSubdivision(id); setSubdiv(id); setSubSounds(metronomeEngine.subdivisionSounds); setDraftSubSounds(metronomeEngine.subdivisionSounds); }}
                     style={{ height: 30, padding: "0 13px", borderRadius: 100, fontSize: 13, fontWeight: active ? 700 : 400, background: active ? "rgba(0,113,227,0.2)" : D.glass, border: `1px solid ${active ? "rgba(0,113,227,0.4)" : D.glassBd}`, color: active ? "#0071e3" : "rgba(255,255,255,0.5)", cursor: "pointer" }}>
                     {symbol}
                   </button>
@@ -957,6 +1011,7 @@ export const MetronomePanel = ({ embedded = false, onClose }: { embedded?: boole
 
   const TABS = [
     { id: "tempo"    as const, label: "Tempo"    },
+    { id: "sounds"   as const, label: "Sons"     },
     { id: "training" as const, label: "Training" },
     { id: "presets"  as const, label: "Presets"  },
     { id: "advanced" as const, label: "Avancé"   },
@@ -1153,7 +1208,7 @@ export const MetronomePanel = ({ embedded = false, onClose }: { embedded?: boole
                 <FlexRow gap={3}>
                   {SUBDIV_OPTS.map(({ id, symbol, label: lbl }) => (
                     <Chip key={id} active={subdiv === id} title={lbl} small
-                      onClick={() => { metronomeEngine.setSubdivision(id); setSubdiv(id); }}>
+                      onClick={() => { metronomeEngine.setSubdivision(id); setSubdiv(id); setSubSounds(metronomeEngine.subdivisionSounds); setDraftSubSounds(metronomeEngine.subdivisionSounds); }}>
                       {symbol}
                     </Chip>
                   ))}
@@ -1178,7 +1233,7 @@ export const MetronomePanel = ({ embedded = false, onClose }: { embedded?: boole
                 <FlexRow gap={3}>
                   {SOUND_OPTS.map(({ id, label: lbl }) => (
                     <Chip key={id} active={sound === id} small
-                      onClick={() => { metronomeEngine.setSoundType(id); setSound(id); }}>
+                      onClick={() => { metronomeEngine.setSoundType(id); setSound(id); setSubSounds(metronomeEngine.subdivisionSounds); setDraftSubSounds(metronomeEngine.subdivisionSounds); }}>
                       {lbl}
                     </Chip>
                   ))}
@@ -1198,6 +1253,84 @@ export const MetronomePanel = ({ embedded = false, onClose }: { embedded?: boole
 
             <Section title="Accents" badge={pattern.length > 0 ? "custom" : undefined}>
               <AccentGrid numerator={sig.numerator} pattern={pattern} onChange={applyPattern} />
+            </Section>
+          </div>
+        )}
+
+        {/* ── Tab: Sons ── */}
+        {activeTab === "sounds" && (
+          <div style={{ display: "flex", flexDirection: "column" as const, gap: 12 }}>
+            <Section title="Sons par subdivision" defaultOpen badge={`${SUBDIV_COUNTS[subdiv]} sub`}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center", marginBottom: 10 }}>
+                <p style={{ margin: 0, fontSize: 10, color: "var(--tx-4)", lineHeight: 1.45 }}>
+                  Chaque subdivision peut utiliser son propre son. Sans réglage, Drumo garde le son de base.
+                </p>
+                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                  <button type="button" onClick={() => void importCustomSound()}
+                    style={{ height: 28, padding: "0 9px", borderRadius: 7, fontSize: 10, fontWeight: 700, background: "var(--accent-dim)", border: "1px solid var(--accent-line)", color: "var(--accent)", cursor: "pointer" }}>
+                    Import MP3
+                  </button>
+                  <button type="button" onClick={applyDraftSubSounds} disabled={!hasDraftSubSoundChanges}
+                    style={{ height: 28, padding: "0 9px", borderRadius: 7, fontSize: 10, fontWeight: 700, background: hasDraftSubSoundChanges ? "var(--c-green)" : "var(--bg-3)", border: "1px solid var(--sep-2)", color: hasDraftSubSoundChanges ? "#fff" : "var(--tx-4)", cursor: hasDraftSubSoundChanges ? "pointer" : "not-allowed", opacity: hasDraftSubSoundChanges ? 1 : 0.6 }}>
+                    Appliquer
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column" as const, gap: 7 }}>
+                {Array.from({ length: SUBDIV_COUNTS[subdiv] }, (_, index) => {
+                  const current = draftSubSounds[index] ?? subSounds[index] ?? { type: "builtin", sound } as MetroSoundRef;
+                  return (
+                    <div key={index} style={{ display: "grid", gridTemplateColumns: "58px minmax(0,1fr)", gap: 8, alignItems: "center" }}>
+                      <span style={{ fontSize: 10, color: "var(--tx-3)", fontWeight: 700 }}>Sub {index + 1}</span>
+                      <select
+                        value={current.type === "builtin" ? `builtin:${current.sound}` : `custom:${current.id}`}
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          if (value.startsWith("builtin:")) {
+                            applySubSound(index, { type: "builtin", sound: value.slice(8) as MetroSound });
+                          } else {
+                            const id = value.slice(7);
+                            const item = customSounds.find((candidate) => candidate.id === id);
+                            if (item) applySubSound(index, { type: "custom", id: item.id, name: item.name, url: item.url });
+                          }
+                        }}
+                        title={soundLabel(current)}
+                        style={{ width: "100%", height: 30, borderRadius: 7, border: "1px solid var(--sep-2)", background: "var(--bg-2)", color: "var(--tx-1)", fontSize: 10, padding: "0 8px" }}
+                      >
+                        <optgroup label="Sons Drumo">
+                          {SOUND_OPTS.map((item) => <option key={item.id} value={`builtin:${item.id}`}>{item.label}</option>)}
+                        </optgroup>
+                        {customSounds.length > 0 && (
+                          <optgroup label="MP3 bibliothèque">
+                            {customSounds.map((item) => <option key={item.id} value={`custom:${item.id}`}>{item.name}</option>)}
+                          </optgroup>
+                        )}
+                      </select>
+                    </div>
+                  );
+                })}
+              </div>
+            </Section>
+
+            <Section title="Bibliothèque MP3" badge={customSounds.length ? String(customSounds.length) : undefined}>
+              {customSounds.length === 0 ? (
+                <div style={{ padding: 12, borderRadius: 8, border: "1px dashed var(--sep-2)", color: "var(--tx-4)", fontSize: 10, textAlign: "center" }}>
+                  Aucun MP3 importé. Utilise “Import MP3” pour ajouter un son à la bibliothèque Drumo.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column" as const, gap: 6 }}>
+                  {customSounds.map((item) => (
+                    <div key={item.id} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: 8, alignItems: "center", padding: "7px 8px", borderRadius: 8, background: "var(--bg-2)", border: "1px solid var(--sep)" }}>
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 10, color: "var(--tx-2)" }}>{item.name}</span>
+                      <button type="button" onClick={() => void deleteCustomSound(item.id)}
+                        style={{ width: 24, height: 24, borderRadius: 6, border: "1px solid var(--sep-2)", background: "var(--bg-3)", color: "var(--c-red)", cursor: "pointer" }}>
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </Section>
           </div>
         )}

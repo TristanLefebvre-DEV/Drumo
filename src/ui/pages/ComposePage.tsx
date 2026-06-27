@@ -29,6 +29,8 @@ import { EnergyTimeline }    from "../components/EnergyTimeline";
 import { PropertiesPanel }   from "../components/PropertiesPanel";
 import { useProjectStore }   from "../../store/projectStore";
 import { useUiStore }        from "../../store/uiStore";
+import { saveMidiMixToLibrary } from "../utils/saveMidiMixToLibrary";
+import { useAuth }          from "../AuthContext";
 import { analyzeVelocity }   from "../../render/velocityAnalyzer";
 import { LIMB_COLOR, computeLimbStats, crossoverCount, avgConfidence } from "../../analysis/limbAnalyzer";
 import { summarizePlayability } from "../../analysis/playabilityEngine";
@@ -163,11 +165,13 @@ const EmptyState = ({ onImport, onNew }: { onImport: () => void; onNew: () => vo
 interface ComposePageProps { onImportMidi: () => void; }
 
 export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
+  const { token } = useAuth();
 
   // ── Local UI state ────────────────────────────────────────────────────────
   const [selectedHitId, setSelectedHitId] = useState<string | null>(null);
   const [viewMode,      setViewMode]      = useState<ViewMode>("score");
   const [showEdu,       setShowEdu]       = useState(false);
+  const [saveMidiState, setSaveMidiState] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   // Panneaux flottants — état partagé avec AppMenuBar via uiStore
   const {
@@ -183,6 +187,7 @@ export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
   // ── Store ─────────────────────────────────────────────────────────────────
   const {
     project, rhythm, quantizeOptions, zoomX, activeTick,
+    activeDrumKit, activeDrumKitId, drumMixer, drumMixerMute, drumMixerSolo,
     setGrid, setPreserveGroove, setZoomX,
     stop, rewindToStart, moveHit, removeHit, addHit, setHitVelocity, setHitDuration, pasteHits,
     setHitType, setHitProbability, toggleHitMute, undo, redo,
@@ -222,6 +227,32 @@ export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
 
   const seekMeasure = (m: number) =>
     void seekTo(m * (project?.ppq ?? 480) * (project?.timeSignature.numerator ?? 4));
+
+  const saveCurrentMidi = async () => {
+    if (!project) return;
+    setSaveMidiState("saving");
+    try {
+      await saveMidiMixToLibrary({
+        token,
+        project,
+        quantizeOptions,
+        mix: {
+          activeDrumKitId,
+          activeDrumKitName: activeDrumKit.name,
+          drumMixer,
+          drumMixerMute,
+          drumMixerSolo,
+          panValues: { kickVolume: 0, snareVolume: 0, hihatVolume: 0, cymbalVolume: 0, tomVolume: 0, roomAmount: 0 },
+          masterVolume: 1,
+        },
+      });
+      setSaveMidiState("saved");
+      window.setTimeout(() => setSaveMidiState("idle"), 1800);
+    } catch {
+      setSaveMidiState("error");
+      window.setTimeout(() => setSaveMidiState("idle"), 2500);
+    }
+  };
 
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -293,6 +324,25 @@ export const ComposePage = ({ onImportMidi }: ComposePageProps) => {
 
         {/* Outils + overlays — droite */}
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 2 }}>
+          {project && (
+            <>
+              <button
+                className={`tb-btn${saveMidiState === "saved" ? " active" : ""}`}
+                type="button"
+                onClick={() => void saveCurrentMidi()}
+                disabled={saveMidiState === "saving"}
+                title="Enregistrer le MIDI courant dans la bibliothèque"
+                style={{
+                  fontWeight: 700,
+                  color: saveMidiState === "error" ? "var(--c-red)" : undefined,
+                  opacity: saveMidiState === "saving" ? 0.6 : 1,
+                }}
+              >
+                {saveMidiState === "saving" ? "Sauvegarde..." : saveMidiState === "saved" ? "MIDI sauvegardé" : saveMidiState === "error" ? "Erreur save" : "Save MIDI"}
+              </button>
+              <Sep />
+            </>
+          )}
           {/* Overlays score (contextuel) */}
           {isScoreView && project && (<>
             <button className={`tb-btn${heatmap.enabled ? " active" : ""}`} type="button" onClick={() => setHeatmap({ enabled: !heatmap.enabled })}>Chaleur</button>

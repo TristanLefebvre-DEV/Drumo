@@ -15,6 +15,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useProjectStore } from "../../store/projectStore";
 import type { DrumKitMixer } from "../../audio/drumKitManager";
+import { useAuth } from "../AuthContext";
+import { saveMidiMixToLibrary } from "../utils/saveMidiMixToLibrary";
 
 // ─── Configuration des canaux ─────────────────────────────────────────────────
 
@@ -477,8 +479,12 @@ const MasterFader = ({
 // ─── Composant principal ──────────────────────────────────────────────────────
 
 export const DrumMixer = ({ onClose, embedded = false }: { onClose?: () => void; embedded?: boolean }) => {
+  const { token } = useAuth();
   const {
+    project,
+    quantizeOptions,
     activeDrumKit,
+    activeDrumKitId,
     drumMixer,
     drumMixerMute,
     drumMixerSolo,
@@ -496,6 +502,8 @@ export const DrumMixer = ({ onClose, embedded = false }: { onClose?: () => void;
 
   // Volume master (multiplicateur global)
   const [masterVolume, setMasterVolumeState] = useState(1.0);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [saveMessage, setSaveMessage] = useState("");
 
   const anySoloed = Object.values(drumMixerSolo).some(Boolean);
 
@@ -511,6 +519,33 @@ export const DrumMixer = ({ onClose, embedded = false }: { onClose?: () => void;
     setPanValues({ kickVolume: 0, snareVolume: 0, hihatVolume: 0, cymbalVolume: 0, tomVolume: 0, roomAmount: 0 });
     setMasterVolumeState(1.0);
   }, [resetDrumMixer]);
+
+  const handleSaveMix = useCallback(async () => {
+    if (!project) return;
+    setSaveState("saving");
+    setSaveMessage("");
+    try {
+      const score = await saveMidiMixToLibrary({
+        token,
+        project,
+        quantizeOptions,
+        mix: {
+          activeDrumKitId,
+          activeDrumKitName: activeDrumKit.name,
+          drumMixer,
+          drumMixerMute,
+          drumMixerSolo,
+          panValues,
+          masterVolume,
+        },
+      });
+      setSaveState("saved");
+      setSaveMessage(`Mix enregistre dans la bibliotheque : ${score.title}`);
+    } catch (error) {
+      setSaveState("error");
+      setSaveMessage(error instanceof Error ? error.message : "Sauvegarde du mix impossible.");
+    }
+  }, [activeDrumKit.name, activeDrumKitId, drumMixer, drumMixerMute, drumMixerSolo, masterVolume, panValues, project, quantizeOptions, token]);
 
   return (
     <div style={{
@@ -546,6 +581,22 @@ export const DrumMixer = ({ onClose, embedded = false }: { onClose?: () => void;
           <div style={{ display: "flex", gap: 6 }}>
             <button
               type="button"
+              onClick={() => void handleSaveMix()}
+              disabled={!project || saveState === "saving"}
+              title={project ? "Enregistrer ce mix MIDI dans la bibliotheque" : "Charge un MIDI avant de sauvegarder le mix"}
+              style={{
+                fontSize: 10, padding: "3px 8px", borderRadius: 5,
+                background: project ? "var(--accent-dim)" : "transparent",
+                color: project ? "var(--accent)" : "var(--tx-4)",
+                border: "1px solid var(--accent-line)", cursor: !project || saveState === "saving" ? "not-allowed" : "pointer",
+                opacity: !project || saveState === "saving" ? 0.55 : 1,
+                transition: "all 0.12s",
+              }}
+            >
+              {saveState === "saving" ? "Enregistrement..." : "Enregistrer mix"}
+            </button>
+            <button
+              type="button"
               onClick={handleResetAll}
               style={{
                 fontSize: 10, padding: "3px 8px", borderRadius: 5,
@@ -573,6 +624,37 @@ export const DrumMixer = ({ onClose, embedded = false }: { onClose?: () => void;
               </button>
             )}
           </div>
+        </div>
+      )}
+
+      {embedded && (
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          gap: 8, padding: "8px 10px",
+          borderBottom: "1px solid var(--sep)",
+          background: "var(--bg-1)",
+          flexShrink: 0,
+        }}>
+          <span style={{ fontSize: 10, color: "var(--tx-3)" }}>
+            {project ? `Mix MIDI - ${activeDrumKit.name}` : "Charge un MIDI pour sauvegarder un mix."}
+          </span>
+          <button
+            type="button"
+            onClick={() => void handleSaveMix()}
+            disabled={!project || saveState === "saving"}
+            title={project ? "Enregistrer ce mix MIDI dans la bibliotheque" : "Charge un MIDI avant de sauvegarder le mix"}
+            style={{
+              height: 26, padding: "0 10px", borderRadius: 7,
+              background: project ? "var(--accent-dim)" : "var(--bg-3)",
+              color: project ? "var(--accent)" : "var(--tx-4)",
+              border: "1px solid var(--accent-line)",
+              fontSize: 10, fontWeight: 700,
+              cursor: !project || saveState === "saving" ? "not-allowed" : "pointer",
+              opacity: !project || saveState === "saving" ? 0.55 : 1,
+            }}
+          >
+            {saveState === "saving" ? "Sauvegarde..." : "Enregistrer dans la bibliotheque"}
+          </button>
         </div>
       )}
 
@@ -626,7 +708,7 @@ export const DrumMixer = ({ onClose, embedded = false }: { onClose?: () => void;
         display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
         <span style={{ fontSize: 9, color: "var(--tx-4)", fontStyle: "italic" }}>
-          {activeDrumKit.description}
+          {saveMessage || activeDrumKit.description}
         </span>
         {anySoloed && (
           <span style={{

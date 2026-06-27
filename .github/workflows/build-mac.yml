@@ -1,36 +1,71 @@
 name: Build macOS
 
 on:
-  workflow_dispatch:        # build macOS manuel ; les releases passent par build.yml
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: "Publier sur la GitHub Release du tag courant"
+        required: false
+        default: false
+        type: boolean
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
 
 jobs:
   build-mac:
+    name: Build macOS DMG
     runs-on: macos-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: "22"
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build (renderer + electron)
+      - name: Typecheck renderer
+        run: npx tsc -p tsconfig.json --noEmit
+
+      - name: Build renderer and Electron main process
         run: npm run build
 
-      - name: Package macOS DMG
+      - name: Verify tag matches package version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          if [ "v$VERSION" != "${GITHUB_REF_NAME}" ]; then
+            echo "Le tag ${GITHUB_REF_NAME} ne correspond pas a package.json ($VERSION)."
+            exit 1
+          fi
+
+      - name: Package macOS DMG x64 + arm64
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx electron-builder --mac --publish never
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: npx electron-builder --mac dmg --x64 --arm64 --publish never
 
-      - name: Upload DMG artifact
+      - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Drumo-mac
+          name: Drumo-macOS-${{ github.ref_name }}
           path: release/*.dmg
+          if-no-files-found: error
           retention-days: 30
+
+      - name: Publish GitHub Release assets
+        if: startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || inputs.publish_release == true)
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*.dmg
+          generate_release_notes: true

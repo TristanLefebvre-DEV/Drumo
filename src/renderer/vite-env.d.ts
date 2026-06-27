@@ -1,8 +1,7 @@
 /// <reference types="vite/client" />
 
-declare const __APP_VERSION__: string;
-
 declare global {
+  const __APP_VERSION__: string;
   type DrumoRole = "user" | "admin";
   interface DrumoUser {
     id: string;
@@ -48,6 +47,14 @@ declare global {
     updatedAt: string;
     midiSize: number;
   }
+  interface DrumoMetronomeSound {
+    id: string;
+    name: string;
+    fileName: string;
+    filePath: string;
+    url: string;
+    createdAt: string;
+  }
   type BackendResult<T> = { ok: true; data: T } | { ok: false; error: { code: string; message: string } };
 
   interface Window {
@@ -87,6 +94,11 @@ declare global {
       };
       // ── Fichiers MIDI / projet ───────────────────────────────────────────
       openMidiFile: () => Promise<{ filePath: string; bytes: number[] } | null>;
+      metronome: {
+        importSound: () => Promise<DrumoMetronomeSound | null>;
+        listSounds: () => Promise<DrumoMetronomeSound[]>;
+        deleteSound: (id: string) => Promise<boolean>;
+      };
       saveProject: (payload: unknown) => Promise<string | null>;
       loadProject: () => Promise<{ filePath: string; content: string } | null>;
 

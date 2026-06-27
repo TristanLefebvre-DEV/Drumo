@@ -42,6 +42,11 @@ contextBridge.exposeInMainWorld("drumApp", {
   // ── Fichiers MIDI / projet ────────────────────────────────────────────────
   openMidiFile: () =>
     ipcRenderer.invoke("dialog:openMidi"),
+  metronome: {
+    importSound: () => ipcRenderer.invoke("metronome:importSound"),
+    listSounds: () => ipcRenderer.invoke("metronome:listSounds"),
+    deleteSound: (id: string) => ipcRenderer.invoke("metronome:deleteSound", id),
+  },
   saveProject: (payload: unknown) =>
     ipcRenderer.invoke("project:save", payload),
   loadProject: () =>

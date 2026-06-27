@@ -2,6 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import path from "node:path";
 import fs from "node:fs/promises";
 import os from "node:os";
+import { pathToFileURL } from "node:url";
 import { renderDrumScore, exportDrumScore, findMuseScore } from "./musescoreService";
 import type { ExportFormat } from "./musescoreService";
 import { registerBackendHandlers } from "./backend";
@@ -9,6 +10,18 @@ import { DrumoUpdateService } from "./updateService";
 import { ConnectionConfig } from "./connectionConfig";
 
 const isDev = Boolean(process.env.VITE_DEV_SERVER_URL);
+
+interface StoredMetronomeSound {
+  id: string;
+  name: string;
+  fileName: string;
+  filePath: string;
+  url: string;
+  createdAt: string;
+}
+
+const safeFilePart = (value: string): string =>
+  value.replace(/[^a-z0-9._-]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "sound";
 
 const createWindow = async (): Promise<void> => {
   const win = new BrowserWindow({
@@ -41,6 +54,20 @@ app.whenReady().then(async () => {
   const backend = await registerBackendHandlers(ipcMain, app.getPath("userData"), connection.get().apiUrl);
   const updateService = new DrumoUpdateService(app.getPath("userData"), () => backend.getSystemSettings());
   updateService.register(ipcMain);
+  const metronomeSoundDir = path.join(app.getPath("userData"), "metronome-sounds");
+  const metronomeSoundIndex = path.join(metronomeSoundDir, "index.json");
+
+  const readMetronomeSounds = async (): Promise<StoredMetronomeSound[]> => {
+    try {
+      const raw = await fs.readFile(metronomeSoundIndex, "utf-8");
+      return JSON.parse(raw) as StoredMetronomeSound[];
+    } catch { return []; }
+  };
+
+  const writeMetronomeSounds = async (items: StoredMetronomeSound[]): Promise<void> => {
+    await fs.mkdir(metronomeSoundDir, { recursive: true });
+    await fs.writeFile(metronomeSoundIndex, JSON.stringify(items, null, 2), "utf-8");
+  };
 
   // ── Importer un fichier MIDI ────────────────────────────────────────────────
   ipcMain.handle("dialog:openMidi", async () => {
@@ -53,6 +80,49 @@ app.whenReady().then(async () => {
     const filePath = result.filePaths[0];
     const buffer = await fs.readFile(filePath);
     return { filePath, bytes: Array.from(buffer) };
+  });
+
+  ipcMain.handle("metronome:importSound", async () => {
+    const result = await dialog.showOpenDialog({
+      title: "Importer un son MP3 pour le metronome",
+      filters: [
+        { name: "Audio", extensions: ["mp3", "wav", "ogg"] },
+        { name: "MP3", extensions: ["mp3"] },
+      ],
+      properties: ["openFile"],
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+    const sourcePath = result.filePaths[0];
+    const stat = await fs.stat(sourcePath);
+    if (stat.size > 10_000_000) throw new Error("Le son est trop volumineux. Limite: 10 Mo.");
+    await fs.mkdir(metronomeSoundDir, { recursive: true });
+    const ext = path.extname(sourcePath).toLowerCase() || ".mp3";
+    const base = safeFilePart(path.basename(sourcePath, ext));
+    const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const fileName = `${id}_${base}${ext}`;
+    const filePath = path.join(metronomeSoundDir, fileName);
+    await fs.copyFile(sourcePath, filePath);
+    const item: StoredMetronomeSound = {
+      id,
+      name: path.basename(sourcePath, ext),
+      fileName,
+      filePath,
+      url: pathToFileURL(filePath).toString(),
+      createdAt: new Date().toISOString(),
+    };
+    const items = await readMetronomeSounds();
+    await writeMetronomeSounds([...items, item]);
+    return item;
+  });
+
+  ipcMain.handle("metronome:listSounds", async () => readMetronomeSounds());
+
+  ipcMain.handle("metronome:deleteSound", async (_evt, id: string) => {
+    const items = await readMetronomeSounds();
+    const target = items.find((item) => item.id === id);
+    if (target) await fs.unlink(target.filePath).catch(() => undefined);
+    await writeMetronomeSounds(items.filter((item) => item.id !== id));
+    return true;
   });
 
   // ── Sauvegarder / charger le projet JSON ────────────────────────────────────

@@ -18,6 +18,16 @@ export type MetroSound =
   | "click" | "sharp-click" | "woodblock" | "beep" | "hihat" | "rimshot"
   | "cowbell" | "clave" | "kick" | "snare";
 
+export interface CustomMetroSound {
+  id: string;
+  name: string;
+  url: string;
+}
+
+export type MetroSoundRef =
+  | { type: "builtin"; sound: MetroSound }
+  | { type: "custom"; id: string; name: string; url: string };
+
 const MAX_METRONOME_VOLUME = 2;
 
 export type MetroSubdivision =
@@ -58,6 +68,7 @@ export interface MetronomeState {
   signature: MetroSignature;
   subdivision: MetroSubdivision;
   soundType: MetroSound;
+  subdivisionSounds: MetroSoundRef[];
   volume: number;
   volumeAccent: number;
   volumeSubdiv: number;
@@ -107,6 +118,7 @@ export class MetronomeEngine {
   private subdivSynthFilter: Tone.Filter | null = null;
   private polyBeepSynth: Tone.Synth | null = null;
   private countInSynth: Tone.Synth | null = null;
+  private customPlayers = new Map<string, Tone.Player>();
 
   // ── State ───────────────────────────────────────────────────────────────────
   private _bpm = 120;
@@ -114,6 +126,7 @@ export class MetronomeEngine {
   private _denominator = 4;
   private _subdivision: MetroSubdivision = "quarter";
   private _soundType: MetroSound = "click";
+  private _subdivisionSounds: MetroSoundRef[] = [];
   private _volume = 0.8;
   private _volumeAccent = 1.0;
   private _volumeSubdiv = 0.35;
@@ -308,6 +321,58 @@ export class MetronomeEngine {
   private get secsPerSubdiv(): number { return this.secsPerBeat / this.subdivsPerBeat; }
   private get secsPerMeasure(): number { return this.secsPerBeat * this._numerator; }
   private get accentNote(): string { return this._soundType === "sharp-click" ? "C6" : "C2"; }
+  private defaultSoundRef(): MetroSoundRef { return { type: "builtin", sound: this._soundType }; }
+  private getSubdivisionSound(index: number): MetroSoundRef {
+    return this._subdivisionSounds[index] ?? this.defaultSoundRef();
+  }
+
+  private triggerBuiltinOneShot(sound: MetroSound, accentLevel: AccentLevel, isBeat: boolean, time: number, volume: number): void {
+    if (!this.masterGain || accentLevel === 0) return;
+    if (sound === this._soundType) {
+      if (isBeat && accentLevel === 2) {
+        this.accentHigh?.triggerAttackRelease(this.accentNote, "32n", time, volume * this._volumeAccent);
+      } else if (isBeat) {
+        const normalVol = this._soundType === "sharp-click" ? 0.85 : 0.65;
+        this.beatNormal?.triggerAttackRelease("32n", time, volume * normalVol);
+      } else {
+        const subdivVol = this._soundType === "sharp-click" ? Math.min(1, this._volumeSubdiv * 1.15) : this._volumeSubdiv;
+        this.subdivSynth?.triggerAttackRelease("32n", time, volume * subdivVol);
+      }
+      return;
+    }
+
+    const decay = sound === "kick" ? 0.18 : sound === "cowbell" ? 0.12 : sound === "hihat" ? 0.035 : 0.055;
+    const synth = sound === "beep"
+      ? new Tone.Synth({ oscillator: { type: "sine" }, envelope: { attack: 0.001, decay, sustain: 0, release: 0.01 } }).connect(this.masterGain)
+      : new Tone.MembraneSynth({ pitchDecay: sound === "kick" ? 0.055 : 0.008, octaves: sound === "kick" ? 6 : 1.5, envelope: { attack: 0.001, decay, sustain: 0 } }).connect(this.masterGain);
+    const note =
+      sound === "kick" ? "C1" :
+      sound === "snare" ? "D2" :
+      sound === "hihat" ? "F#5" :
+      sound === "cowbell" ? "A4" :
+      sound === "clave" ? "C6" :
+      sound === "rimshot" ? "D5" :
+      sound === "woodblock" ? "G4" :
+      accentLevel === 2 ? "C6" : "C4";
+    synth.triggerAttackRelease(note, "32n", time, volume * (isBeat ? 0.75 : this._volumeSubdiv));
+    setTimeout(() => synth.dispose(), 1000);
+  }
+
+  private triggerSoundRef(ref: MetroSoundRef, accentLevel: AccentLevel, isBeat: boolean, time: number, volume: number): void {
+    if (accentLevel === 0) return;
+    if (ref.type === "builtin") {
+      this.triggerBuiltinOneShot(ref.sound, accentLevel, isBeat, time, volume);
+      return;
+    }
+    if (!this.masterGain) return;
+    let player = this.customPlayers.get(ref.id);
+    if (!player) {
+      player = new Tone.Player({ url: ref.url, autostart: false }).connect(this.masterGain);
+      this.customPlayers.set(ref.id, player);
+    }
+    player.volume.value = Tone.gainToDb(Math.max(0.001, Math.min(1, volume * (isBeat ? 0.9 : this._volumeSubdiv))));
+    try { player.start(time, 0, "32n"); } catch { /* sample may still be loading */ }
+  }
 
   private scheduleWindow(windowStart: number, windowEnd: number): void {
     if (!this._isRunning || !this.ctx) return;
@@ -377,18 +442,14 @@ export class MetronomeEngine {
             if (isBeat) {
               if (accentLevel === 2) {
                 // Strong accent — membrane synth
-                this.accentHigh?.triggerAttackRelease(this.accentNote, "32n", eventTime, this._volume * this._volumeAccent);
+                this.triggerSoundRef(this.getSubdivisionSound(subdivIdx), accentLevel, isBeat, eventTime, this._volume);
               } else {
                 // Normal beat
-                const normalVol = this._soundType === "sharp-click" ? 0.85 : 0.65;
-                this.beatNormal?.triggerAttackRelease("32n", eventTime, this._volume * normalVol);
+                this.triggerSoundRef(this.getSubdivisionSound(subdivIdx), accentLevel, isBeat, eventTime, this._volume);
               }
             } else {
               // Subdivision click
-              const subdivVol = this._soundType === "sharp-click"
-                ? Math.min(1, this._volumeSubdiv * 1.15)
-                : this._volumeSubdiv;
-              this.subdivSynth?.triggerAttackRelease("32n", eventTime, this._volume * subdivVol);
+              this.triggerSoundRef(this.getSubdivisionSound(subdivIdx), accentLevel, isBeat, eventTime, this._volume);
             }
           }
         }
@@ -544,6 +605,19 @@ export class MetronomeEngine {
     this.rebuildSynths();
   }
 
+  get subdivisionSounds(): MetroSoundRef[] {
+    return Array.from({ length: this.subdivsPerBeat }, (_, index) => this.getSubdivisionSound(index));
+  }
+
+  setSubdivisionSound(index: number, ref: MetroSoundRef): void {
+    if (index < 0 || index >= 7) return;
+    this._subdivisionSounds[index] = ref;
+  }
+
+  setSubdivisionSounds(refs: MetroSoundRef[]): void {
+    this._subdivisionSounds = refs.slice(0, 7);
+  }
+
   // ── Volume ───────────────────────────────────────────────────────────────────
 
   get volume(): number { return this._volume; }
@@ -638,6 +712,7 @@ export class MetronomeEngine {
       signature: { numerator: this._numerator, denominator: this._denominator },
       subdivision: this._subdivision,
       soundType: this._soundType,
+      subdivisionSounds: this.subdivisionSounds,
       volume: this._volume,
       volumeAccent: this._volumeAccent,
       volumeSubdiv: this._volumeSubdiv,
@@ -658,6 +733,8 @@ export class MetronomeEngine {
     this.beatNormalFilter?.dispose();
     this.subdivSynth?.dispose();
     this.subdivSynthFilter?.dispose();
+    for (const player of this.customPlayers.values()) player.dispose();
+    this.customPlayers.clear();
     this.polyBeepSynth?.dispose();
     this.countInSynth?.dispose();
   }
@@ -695,6 +772,7 @@ export interface MetroPreset {
   signature: MetroSignature;
   subdivision: MetroSubdivision;
   soundType: MetroSound;
+  subdivisionSounds?: MetroSoundRef[];
   accentPattern?: AccentLevel[];
   volumeAccent?: number;
   volumeSubdiv?: number;

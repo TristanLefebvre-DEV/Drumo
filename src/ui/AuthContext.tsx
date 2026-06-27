@@ -1,4 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { authService } from "../services/authService";
+import { librarySyncService } from "../services/librarySyncService";
 
 interface AuthValue {
   token: string; user: DrumoUser; settings: DrumoSettings;
@@ -74,9 +76,17 @@ const Maintenance = ({ user, logout }: { user: DrumoUser; logout: () => Promise<
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [state, setState] = useState<{ token: string; user: DrumoUser; settings: DrumoSettings } | null>(null); const [loading, setLoading] = useState(true);
   useEffect(() => { const token = sessionStorage.getItem(sessionKey); if (!token) return setLoading(false); window.drumApp.backend.me(token).then((r) => { if (r.ok) setState({ token, ...r.data }); else sessionStorage.removeItem(sessionKey); }).finally(() => setLoading(false)); }, []);
-  const login = useCallback(async (username: string, password: string) => { const data = unwrapBackend(await window.drumApp.backend.login({ username, password })); sessionStorage.setItem(sessionKey, data.token); setState(data); }, []);
-  const register = useCallback(async (username: string, password: string) => { const data = unwrapBackend(await window.drumApp.backend.register({ username, password })); sessionStorage.setItem(sessionKey, data.token); setState(data); }, []);
-  const logout = useCallback(async () => { if (state) await window.drumApp.backend.logout(state.token); sessionStorage.removeItem(sessionKey); setState(null); }, [state]);
+  const login = useCallback(async (username: string, password: string) => {
+    const data = unwrapBackend(await window.drumApp.backend.login({ username, password }));
+    if (username.includes("@")) await authService.login(username, password).catch((error) => console.warn("[auth] Session cloud indisponible", error));
+    sessionStorage.setItem(sessionKey, data.token); setState(data);
+  }, []);
+  const register = useCallback(async (username: string, password: string) => {
+    const data = unwrapBackend(await window.drumApp.backend.register({ username, password }));
+    if (username.includes("@")) await authService.register(username, password).catch((error) => console.warn("[auth] Creation cloud indisponible", error));
+    sessionStorage.setItem(sessionKey, data.token); setState(data);
+  }, []);
+  const logout = useCallback(async () => { if (state) await window.drumApp.backend.logout(state.token); await authService.logout(); sessionStorage.removeItem(sessionKey); setState(null); }, [state]);
   const changePassword = useCallback(async (currentPassword: string, newPassword: string) => { if (!state) return; const user = unwrapBackend(await window.drumApp.backend.changePassword(state.token, { currentPassword, newPassword })); setState({ ...state, user }); }, [state]);
   const updateSettings = useCallback((settings: DrumoSettings) => setState((s) => s ? { ...s, settings } : s), []);
   useEffect(() => {
@@ -93,6 +103,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const onFocus = () => void refresh();
     window.addEventListener("focus", onFocus);
     return () => { window.clearInterval(interval); window.removeEventListener("focus", onFocus); };
+  }, [state?.token]);
+  useEffect(() => {
+    if (!state) return;
+    void librarySyncService.syncLibrary().then((result) => {
+      if (result.mode === "cloud") console.info("[librarySync]", result.message, result);
+    });
   }, [state?.token]);
   const value = useMemo(() => state ? { ...state, logout, changePassword, updateSettings } : null, [state, logout, changePassword, updateSettings]);
   if (loading) return <div className="app-bg" style={{ height: "100vh", display: "grid", placeItems: "center", color: "var(--tx-3)" }}>Ouverture de Drumo…</div>;
