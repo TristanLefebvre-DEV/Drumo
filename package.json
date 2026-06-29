@@ -1,7 +1,7 @@
 {
   "name": "musecore",
   "version": "1.2.0",
-  "description": "Offline desktop drum score generator from MIDI",
+  "description": "Desktop DAW and beatmaking app for drum MIDI composition, mixing, metronome practice, local library and cloud-ready sync.",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev:renderer": "vite",
@@ -20,8 +20,18 @@
     "server:start": "node dist-server/server/src/index.js",
     "server:dev": "tsx server/src/index.ts"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "drumo",
+    "daw",
+    "beatmaker",
+    "drums",
+    "midi",
+    "metronome",
+    "music-production",
+    "electron",
+    "react"
+  ],
+  "author": "Drumo",
   "license": "ISC",
   "repository": {
     "type": "git",

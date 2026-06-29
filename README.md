@@ -1,77 +1,90 @@
-# Drum MIDI Scorer Pro
+# Drumo
 
-Application desktop offline (Windows/Mac/Linux) pour convertir un MIDI batterie en partition de batterie lisible, editable et exportable.
+Drumo est un logiciel desktop de creation musicale oriente batterie, MIDI et beatmaking. Il permet de composer, editer, mixer et exporter rapidement des idees rythmiques dans une interface sombre inspiree des outils DAW modernes.
+
+Le projet fonctionne en local par defaut, avec une architecture preparee pour les comptes utilisateurs, la synchronisation cloud, les licences et les mises a jour distantes.
 
 ## Fonctionnalites principales
 
-- Import MIDI intelligent (canal 10 + fallback GM drum map)
-- Fusion automatique de pistes batterie detectees
-- Quantization configurable: `1/4`, `1/8`, `1/16`, `1/32`, `8T`, `16T`
-- Preserve groove + detection automatique de swing
-- Regroupement automatique en accords batterie (stack vertical)
-- Rendu VexFlow sur portee percussion 5 lignes
-- Ghost notes, accents, differenciation visuelle des cymbales
-- Playback interne avec synchronisation curseur
-- Export PDF, MIDI, SVG
-- Sauvegarde / chargement projet JSON
-- UI sombre type DAW avec timeline + panneau d'options
+- Composition MIDI pour batterie et grooves rythmiques
+- Import MIDI avec detection et mapping batterie
+- Piano roll, pads, edition de notes et timeline
+- Mixer MIDI avec sauvegarde des mix dans la bibliotheque
+- Bibliotheque locale de projets, presets et sons
+- Metronome avance avec subdivisions configurables
+- Sons de metronome par subdivision, avec import MP3/WAV/OGG
+- Export audio, MIDI, SVG/PDF selon les vues disponibles
+- Lecture interne synchronisee avec le projet
+- Interface desktop sombre, moderne et responsive
+- Mode local complet, sans obligation de connexion
+- Preparation Supabase pour auth, profils, cloud sync et releases
+- Systeme de verification des mises a jour distantes
+- Builds Windows NSIS et macOS DMG via GitHub Actions
 
-## Stack
+## Cloud et comptes
+
+Drumo garde la bibliotheque locale comme base fiable. Le cloud est ajoute progressivement comme une amelioration :
+
+- Authentification Supabase prevue
+- Profiles utilisateurs
+- Synchronisation locale/cloud des elements de bibliotheque
+- Gestion des versions distantes
+- Licences et espace admin preparables cote serveur
+
+Voir [README_SETUP_CLOUD.md](./README_SETUP_CLOUD.md) pour la configuration Supabase.
+
+## Stack technique
 
 - Electron
-- React + TypeScript
+- React
+- TypeScript
+- Vite
 - TailwindCSS
-- @tonejs/midi
 - Tone.js
-- VexFlow
-- Zustand (store central)
+- @tonejs/midi
+- Zustand
+- Supabase-ready services
+- Electron Builder
 
-## Architecture
-
-```txt
-src/
-  core/
-    midiParser.ts
-    drumMapper.ts
-    quantizer.ts
-    rhythmEngine.ts
-    midiExporter.ts
-    types.ts
-  render/
-    staffRenderer.ts
-    vexflowAdapter.ts
-  audio/
-    midiPlayer.ts
-  ui/
-    components/
-      TopBar.tsx
-      ScoreCanvas.tsx
-      RightPanel.tsx
-    pages/
-      DrumScorePage.tsx
-  store/
-    projectStore.ts
-  renderer/
-    main.tsx
-    styles/index.css
-  electron/
-    main.ts
-    preload.ts
-```
-
-## Scripts
-
-- `npm run dev`
-- `npm run build`
-- `npm run package`
-- `npm run generate:demo-midi`
-
-## Demo rapide
+## Lancer en local
 
 ```bash
 npm install
-npm run generate:demo-midi
 npm run dev
 ```
 
-Puis importer `assets/demo.mid`.
+## Builds
+
+Build application :
+
+```bash
+npm run build
+```
+
+Build Windows local :
+
+```bash
+npm run build
+npx electron-builder --win nsis --publish never
+```
+
+Build macOS DMG :
+
+Le DMG doit etre genere sur macOS. Le depot contient des GitHub Actions qui construisent le `.dmg` sur runner `macos-latest` lors des tags de release.
+
+```bash
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+## Releases
+
+Les releases GitHub publient les assets de telechargement :
+
+- `Drumo Setup x.y.z.exe` pour Windows
+- `Drumo-x.y.z.dmg` pour macOS
+- `latest.json` pour la verification de mise a jour
+
+## Objectif produit
+
+Drumo vise a devenir un outil simple et rapide pour batteurs, beatmakers et producteurs qui veulent capturer une idee, construire un groove, mixer les elements principaux et exporter sans friction.
